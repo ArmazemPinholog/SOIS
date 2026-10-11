@@ -38,9 +38,6 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${serif.variable} ${sans.variable}`}>
-      <head>
-        <link rel="preload" as="image" href="/seq/hero-v1/f001.webp" />
-      </head>
       <body>{children}</body>
     </html>
   );

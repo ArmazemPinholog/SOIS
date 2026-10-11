@@ -28,6 +28,18 @@ npm run build    # build de produção
 | `app/page.tsx` | Seções: copo, manifesto, cardápio (provisório), visite e rodapé |
 | `app/globals.css` | Paleta da marca e estilos |
 
+## Protótipo 3D (`/prototipo-3d`)
+
+Cena em tempo real com Three.js (React Three Fiber), separada do site atual:
+
+| Arquivo | O que faz |
+|---|---|
+| `components/three/Experience.tsx` | Canvas, câmera, luzes, linha do tempo do scroll e textos |
+| `components/three/Beans.tsx` | Grãos 3D que formam o símbolo dos dois sóis e depois caem |
+| `components/three/Cup.tsx` | Copo com a estampa da marca, fio de café, nível subindo e gelo |
+| `components/three/assets.ts` | Geometria do grão e texturas geradas em código (estampa e parede com sombra de palmeira) |
+| `lib/soisSymbol.ts` | Traços do símbolo, usados pelo SVG, pelos grãos e pela estampa |
+
 ## Trocar o vídeo do hero
 
 1. Gere os frames em uma pasta nova (evita cache antigo):

@@ -1,3 +1,4 @@
+import { preload } from "react-dom";
 import HeroSequence from "@/components/HeroSequence";
 import ScrollEffects from "@/components/ScrollEffects";
 import SmoothScroll from "@/components/SmoothScroll";
@@ -39,6 +40,7 @@ function Marquee() {
 }
 
 export default function Home() {
+  preload("/seq/hero-v1/f001.webp", { as: "image" });
   return (
     <>
       <SmoothScroll />
