@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Beans from "./Beans";
-import Cup from "./Cup";
+import Station, { stationFocus } from "./Station";
 import { COLORS, createPalmWallTexture } from "./assets";
 import { easeInOutCubic, range } from "./math";
 
@@ -19,58 +19,74 @@ export type ProgressRef = RefObject<{ target: number; value: number }>;
    0.00–0.03  grãos soltos, flutuando (reagem ao mouse)
    0.03–0.33  grãos voam e formam o símbolo dos dois sóis
    0.33–0.43  símbolo formado + título SÓIS
-   0.43–0.57  símbolo se desfaz, grãos caem (aqui entram moer e passar nas próximas etapas)
-   0.47–0.60  copo sobe
-   0.57–0.79  fio de café enche o copo
-   0.72–0.82  gelo cai
-   0.78–1.00  copo gira com o scroll */
+   0.43–0.57  símbolo se desfaz, grãos caem (o moedor entra aqui)
+   0.50–1.00  estação de coado: ver STATION_TIMELINE em Station.tsx */
 
-function useLayout() {
+type Vec3 = [number, number, number];
+type Layout = {
+  portrait: boolean;
+  symbol: { position: Vec3; scale: number };
+  station: { position: Vec3; scale: number };
+};
+
+function useLayout(): Layout {
   const viewport = useThree((s) => s.viewport);
   const portrait = viewport.width / viewport.height < 1;
   return portrait
     ? {
-        symbol: { position: [0, 1.15, 0] as [number, number, number], scale: 0.6 },
-        cup: { position: [0, -2.9, 0] as [number, number, number], scale: 0.72 },
+        portrait,
+        symbol: { position: [0, 1.15, 0], scale: 0.6 },
+        station: { position: [0.3, -3.6, 0], scale: 0.62 },
       }
     : {
-        symbol: { position: [2.4, 0, 0] as [number, number, number], scale: 1 },
-        cup: { position: [2.3, -1.55, 0] as [number, number, number], scale: 1.05 },
+        portrait,
+        symbol: { position: [2.4, 0, 0], scale: 1 },
+        station: { position: [2.6, -3.5, 0], scale: 0.85 },
       };
 }
 
 function Backdrop() {
   const texture = useMemo(() => createPalmWallTexture(), []);
-  const mesh = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     // sombras das folhas balançando devagar
     texture.offset.x = Math.sin(state.clock.elapsedTime * 0.25) * 0.006;
     texture.offset.y = Math.cos(state.clock.elapsedTime * 0.2) * 0.004;
   });
   return (
-    <mesh ref={mesh} position={[0, 2, -9]}>
+    <mesh position={[0, 2, -9]}>
       <planeGeometry args={[48, 27]} />
       <meshBasicMaterial map={texture} toneMapped={false} />
     </mesh>
   );
 }
 
-function Rig({ progress }: { progress: ProgressRef }) {
+function Rig({ progress, layout }: { progress: ProgressRef; layout: Layout }) {
   const look = useMemo(() => new THREE.Vector3(), []);
   useFrame((state, dt) => {
     const pr = progress.current;
     pr.value = THREE.MathUtils.damp(pr.value, pr.target, 3.2, dt);
     const p = pr.value;
-    // na fase do copo a câmera sobe para enxergar o café e o gelo por cima
-    const up = easeInOutCubic(range(p, 0.5, 0.66));
-    const portrait = state.viewport.aspect < 1;
     const cam = state.camera;
+
+    // 0 = enquadramento do símbolo; 1 = câmera acompanhando o café na estação
+    const k = easeInOutCubic(range(p, 0.5, 0.62));
+    const { position: sp, scale: ss } = layout.station;
+    const focusY = sp[1] + stationFocus(p) * ss;
+    const overview = easeInOutCubic(range(p, 0.9, 0.98));
+    // no retrato a estação fica centralizada; no desktop o texto ocupa a esquerda
+    const focusX = layout.portrait ? sp[0] : sp[0] - 1.9;
+
+    const lookY = THREE.MathUtils.lerp(0, focusY, k);
+    const lookX = THREE.MathUtils.lerp(0, focusX * 0.55, k);
+    const camY = lookY + k * THREE.MathUtils.lerp(1.4, 2.2, overview);
+    const camZ = THREE.MathUtils.lerp(12, THREE.MathUtils.lerp(11, 15.5, overview), k) + (layout.portrait ? k * 3 : 0);
+
     const px = state.pointer.x * 0.35;
     const py = state.pointer.y * 0.2;
-    cam.position.x = THREE.MathUtils.lerp(cam.position.x, px, 0.04);
-    cam.position.y = THREE.MathUtils.lerp(cam.position.y, py + up * 3.6, 0.08);
-    cam.position.z = 12 - up * 0.8;
-    look.set(0, up * (portrait ? -1.7 : -1.0), 0);
+    cam.position.x = THREE.MathUtils.lerp(cam.position.x, lookX + px, 0.05);
+    cam.position.y = THREE.MathUtils.lerp(cam.position.y, camY + py, 0.08);
+    cam.position.z = THREE.MathUtils.lerp(cam.position.z, camZ, 0.08);
+    look.set(lookX, lookY, 0);
     cam.lookAt(look);
   });
   return null;
@@ -108,8 +124,8 @@ function Scene({ progress }: { progress: ProgressRef }) {
 
       <Backdrop />
       <Beans progress={progress} position={layout.symbol.position} scale={layout.symbol.scale} />
-      <Cup progress={progress} position={layout.cup.position} scale={layout.cup.scale} />
-      <Rig progress={progress} />
+      <Station progress={progress} position={layout.station.position} scale={layout.station.scale} />
+      <Rig progress={progress} layout={layout} />
     </>
   );
 }
@@ -141,8 +157,9 @@ export default function Experience() {
       tl.to(".p3d__hint", { autoAlpha: 0, duration: 0.03 }, 0.02);
       show(".p3d__panel--marca", 0.24, 0.42);
       show(".p3d__panel--ritual", 0.45, 0.56);
-      show(".p3d__panel--cold", 0.6, 0.76);
-      show(".p3d__panel--copo", 0.82);
+      show(".p3d__panel--coado", 0.62, 0.75);
+      show(".p3d__panel--cold", 0.78, 0.88);
+      show(".p3d__panel--copo", 0.91);
       tl.to({}, { duration: 0.0001 }, 1);
     }, el);
     return () => ctx.revert();
@@ -182,26 +199,36 @@ export default function Experience() {
             <br />
             <em>à xícara.</em>
           </h2>
-          <p className="p3d__lead">Próximas cenas do protótipo: o moedor e o coado.</p>
+          <p className="p3d__lead">Aqui entra o moedor (modelo 3D em produção).</p>
+        </div>
+
+        <div className="p3d__panel p3d__panel--coado">
+          <p className="p3d__kicker">02 — Coado na serpentina</p>
+          <h2 className="p3d__display">
+            Devagar,
+            <br />
+            <em>volta a volta.</em>
+          </h2>
+          <p className="p3d__lead">O café atravessa o vidro em espiral e chega no ponto certo de extração.</p>
         </div>
 
         <div className="p3d__panel p3d__panel--cold">
-          <p className="p3d__kicker">02 — Cold brew</p>
+          <p className="p3d__kicker">03 — Gelado</p>
           <h2 className="p3d__display">
-            Passado devagar,
+            Passado direto
             <br />
-            <em>servido gelado.</em>
+            <em>sobre o gelo.</em>
           </h2>
         </div>
 
         <div className="p3d__panel p3d__panel--copo">
-          <p className="p3d__kicker">03 — A casa</p>
+          <p className="p3d__kicker">04 — A casa</p>
           <h2 className="p3d__display">
             Nosso sol
             <br />
             <em>em cada copo.</em>
           </h2>
-          <p className="p3d__lead">Estampa gerada direto do símbolo da marca. Mova o mouse e continue rolando para girar o copo.</p>
+          <p className="p3d__lead">Estampa gerada direto do símbolo da marca.</p>
         </div>
       </div>
     </section>
