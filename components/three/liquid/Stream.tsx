@@ -15,10 +15,15 @@ type Props = {
   radius: number;
   /** 0..1: até onde o fio já desceu (a "cabeça" arredondada) */
   headRef: RefObject<number>;
+  /** 0..1: quanto do topo do fio já se soltou (fim do despejo). Opcional. */
+  tailRef?: RefObject<number>;
   position?: [number, number, number];
   twist?: number;
   amp?: number;
   thin?: number;
+  /** brilho âmbar nas bordas (translucidez) e força dos reflexos; fios finos pedem menos */
+  glow?: number;
+  env?: number;
 };
 
 /** Mesma fórmula do vertex shader, para posicionar gotas sobre o fio. */
@@ -35,10 +40,13 @@ export default function Stream({
   length,
   radius,
   headRef,
+  tailRef,
   position = [0, 0, 0],
   twist = 0.05,
   amp = 0.16,
   thin = 0.42,
+  glow = 1,
+  env = 1,
 }: Props) {
   const geometry = useMemo(() => new THREE.CylinderGeometry(1, 1, 1, 40, 220, true), []);
   const material = useMemo(
@@ -57,8 +65,10 @@ export default function Stream({
           uTwist: { value: twist },
           uAmp: { value: amp },
           uThin: { value: thin },
+          uTail: { value: 0 },
           uKind: { value: kind === "water" ? 1 : 0 },
-          uGlow: { value: 1 },
+          uGlow: { value: glow },
+          uEnv: { value: env },
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,6 +84,9 @@ export default function Stream({
     u.uAmp.value = amp;
     u.uThin.value = thin;
     u.uHead.value = headRef.current ?? 0;
+    u.uTail.value = tailRef?.current ?? 0;
+    u.uGlow.value = glow;
+    u.uEnv.value = env;
   });
 
   return (

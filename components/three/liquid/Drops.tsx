@@ -17,6 +17,8 @@ type Props = {
   twist: number;
   /** 0..1: quanto o fio já desceu */
   headRef: RefObject<number>;
+  /** 0..1: parte do topo do fio que já se soltou (opcional) */
+  tailRef?: RefObject<number>;
   /** 0..1: intensidade do fluxo (controla a taxa de gotas) */
   flowRef: RefObject<number>;
   /** y atual da superfície do líquido no copo (sobe com o nível) */
@@ -35,6 +37,7 @@ export default function Drops({
   length,
   twist,
   headRef,
+  tailRef,
   flowRef,
   surfaceYRef,
   touchRef,
@@ -87,7 +90,9 @@ export default function Drops({
     state.accShed += dt * 26 * flow * (water ? 0.5 : 1);
     while (state.accShed > 1) {
       state.accShed -= 1;
-      const sPos = 0.12 + Math.random() * 0.75 * Math.max(head, 0.05);
+      const tail = tailRef?.current ?? 0;
+      const from = Math.max(0.12, tail);
+      const sPos = from + Math.random() * 0.85 * Math.max(head - from, 0.02);
       streamCentre(sPos, length, twist, time, tmp);
       const a = Math.random() * Math.PI * 2;
       const out = 0.18 + Math.random() * 0.5;

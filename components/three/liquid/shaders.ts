@@ -48,6 +48,7 @@ uniform float uHead;
 uniform float uTwist;
 uniform float uAmp;
 uniform float uThin;
+uniform float uTail;
 varying vec3 vNormalW;
 varying vec3 vPosW;
 varying float vS;
@@ -62,7 +63,13 @@ float radAt(float s) {
   float t = max(0.0, s - (uHead - cap)) / cap;
   float headMul = s > uHead ? 0.0 : sqrt(clamp(1.0 - t * t, 0.0, 1.0));
   float topFade = smoothstep(0.0, 0.02, s);
-  return uR0 * wob * thin * headMul * mix(0.55, 1.0, topFade);
+  // cauda: quando o despejo termina, o fio se solta da fonte e cai inteiro
+  float tailMul = 1.0;
+  if (uTail > 0.0) {
+    float tt = max(0.0, (uTail + cap) - s) / cap;
+    tailMul = s < uTail ? 0.0 : sqrt(clamp(1.0 - tt * tt, 0.0, 1.0));
+  }
+  return uR0 * wob * thin * headMul * tailMul * mix(0.55, 1.0, max(topFade, step(0.001, uTail)));
 }
 
 vec3 centreAt(float s) {
@@ -73,7 +80,7 @@ vec3 centreAt(float s) {
 }
 
 vec3 surfaceAt(float th, float s) {
-  float ss = min(s, uHead);
+  float ss = clamp(s, uTail, uHead);
   vec3 c = centreAt(ss);
   float r = radAt(s);
   float rot = ss * uLen * 4.0 - uTime * 3.0;
@@ -104,6 +111,7 @@ void main() {
 export const STREAM_FRAG = /* glsl */ `
 uniform float uKind;
 uniform float uGlow;
+uniform float uEnv;
 varying vec3 vNormalW;
 varying vec3 vPosW;
 varying float vS;
@@ -113,7 +121,7 @@ void main() {
   vec3 N = normalize(vNormalW);
   if (!gl_FrontFacing) N = -N;
   vec3 V = normalize(cameraPosition - vPosW);
-  vec4 c = liquidShade(N, V, uKind, uGlow, 1.0);
+  vec4 c = liquidShade(N, V, uKind, uGlow, uEnv);
   c.a *= smoothstep(0.0, 0.02, vS);
   gl_FragColor = c;
   #include <tonemapping_fragment>
@@ -193,6 +201,8 @@ void main() {
 export const COIL_FRAG = /* glsl */ `
 uniform float uFill;
 uniform float uTime;
+uniform float uGlow;
+uniform float uEnv;
 varying vec3 vNormalW;
 varying vec3 vPosW;
 varying float vU;
@@ -202,7 +212,7 @@ void main() {
   if (vU > uFill) discard;
   vec3 N = normalize(vNormalW);
   vec3 V = normalize(cameraPosition - vPosW);
-  vec4 c = liquidShade(N, V, 0.0, 1.25, 0.8);
+  vec4 c = liquidShade(N, V, 0.0, uGlow, uEnv);
   float flow = 0.5 + 0.5 * sin(vU * 260.0 - uTime * 7.0);
   c.rgb *= 0.92 + 0.16 * flow;
   float front = smoothstep(uFill - 0.02, uFill, vU);

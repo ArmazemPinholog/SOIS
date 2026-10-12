@@ -31,10 +31,18 @@ Abordagem **híbrida**:
 Aprovadas para virar 3D: suporte sem a espiral (base oval de nogueira, haste de aço com remate de meio-sol de latão, anel de latão, V60 bordô com borda dourada, colar de saída de latão), chaleira bico de ganso (bordô, latão, botão de tampa em forma de sol, cabo creme), moedor (corpo creme, funil bordô aberto, latão, copinho bordô, base de nogueira), grão de café (macro realista), gelos (3 formas; converter primeiro o opaco), textura de pó de café, copo da marca vazio (bordô, interior creme, estampa dos sóis em laranja e creme, emenda lateral).
 Os prompts usados estão em `docs/prompts-3d.md`.
 
+## Atualização 12/10/2026 (sessão local)
+- **Hero do site (`/`) virou a história 3D** (`components/story/`): grãos reais formam o símbolo oficial → voam para o funil do moedor → pó cai no copinho → chaleira despeja água em círculos no V60 (cama de pó + café subindo) → café pela serpentina de vidro → cubos de gelo caem no copo da Sóis → café cai sobre o gelo → copo gira no final. Câmera e textos guiados pelo scroll; pós-produção com grão de filme, vinheta, brilho, aberração ligada à velocidade e profundidade de campo nos planos do copo. Sem WebGL ou com movimento reduzido, cai no vídeo antigo (`HeroSequence`).
+- **Modelos**: GLBs do Tripo (~61 MB e ~2 mi triângulos cada) comprimidos para `public/models/` (meshopt + WebP; total ~2,2 MB). Grão com 1,1 mil triângulos (instanciado), gelo com 6 mil (suavizado em código), demais com 40 mil.
+- **Copo**: perfil medido no `copo.glb` (parede cônica r = 0,3017 + 0,1162·y, borda enrolada) e reconstruído por revolução, porque o GLB trazia os sóis em relevo. Estampa gerada do símbolo oficial, laranja com folha metálica.
+- **Símbolo oficial** extraído do `logo.pdf` por ajuste geométrico (`lib/soisSymbol.ts`): duas hastes por meio-sol, 9 e 11 raios, arco em crescente.
+- **Líquido em código** (`components/three/liquid/`) e laboratório em `/teste-liquido`.
+- Medidas de encaixe (funil, bica, colar do V60, bico da chaleira) estão em `components/story/layout.ts`.
+
 ## Pendências
 **Com o Christian**
-- Enviar os GLB: grão, gelo (2 ou 3 formas), suporte sem espiral, chaleira, moedor, copo vazio.
-- **Logo oficial em vetor (SVG/PDF/AI)** — o símbolo atual (`lib/soisSymbol.ts`) é provisório.
+- Testar a história no notebook e no celular reais (FPS e sensação do scroll); a nuvem só renderiza por software.
+- Fotos de gelo real (para o material do gelo) e, se existir, o logo em SVG nativo.
 - Conteúdo real: cardápio, endereço, horário, Instagram.
 - Publicar na Vercel: o conector da nuvem não tem permissão no time `astrovia-solutions` (403). Caminho: vercel.com/new → importar `ArmazemPinholog/SOIS` → Deploy (Next.js é detectado sozinho; liberar a organização no GitHub App se o repo não aparecer).
 

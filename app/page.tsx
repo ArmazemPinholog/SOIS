@@ -1,5 +1,4 @@
-import { preload } from "react-dom";
-import HeroSequence from "@/components/HeroSequence";
+import Story from "@/components/story/Story";
 import ScrollEffects from "@/components/ScrollEffects";
 import SmoothScroll from "@/components/SmoothScroll";
 import SoisSymbol from "@/components/SoisSymbol";
@@ -40,7 +39,6 @@ function Marquee() {
 }
 
 export default function Home() {
-  preload("/seq/hero-v1/f001.webp", { as: "image" });
   return (
     <>
       <SmoothScroll />
@@ -63,7 +61,7 @@ export default function Home() {
       </header>
 
       <main>
-        <HeroSequence />
+        <Story />
 
         {/* 03 — O copo (cena 3b provisória: foto da marca até chegar o vídeo em alta) */}
         <section className="copo" id="copo">
@@ -72,7 +70,7 @@ export default function Home() {
           </div>
           <div className="copo__text">
             <p className="kicker kicker--light" data-reveal>
-              03 — A casa veste bordô
+              06 — A casa veste bordô
             </p>
             <h2 className="display display--light" data-reveal="0.1">
               Nosso sol
@@ -108,7 +106,7 @@ export default function Home() {
         <section className="cardapio" id="cardapio">
           <div className="cardapio__head">
             <p className="kicker kicker--light" data-reveal>
-              04 — Para beber
+              07 — Para beber
             </p>
             <h2 className="display display--light" data-reveal="0.1">
               Cardápio
@@ -137,7 +135,7 @@ export default function Home() {
             <img data-parallax="10" src="/img/casa-placa.jpg" alt="Placa redonda da Sóis na fachada, com palmeiras e o mar ao fundo" />
           </div>
           <div className="casa__card" data-reveal>
-            <p className="kicker">05 — Visite</p>
+            <p className="kicker">08 — Visite</p>
             <h2 className="display">
               Sob o sol
               <br />
