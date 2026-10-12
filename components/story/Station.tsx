@@ -145,7 +145,13 @@ export default function Station({ progress, refs, cupLevel, cupImpact }: Props) 
     /* ---------- cama de pó e café no V60 ---------- */
     const bloom = range(p, T.bloom[0], T.bloom[1]);
     if (bedMat.current) bedMat.current.color.copy(dry).lerp(wet, Math.min(1, bloom * 1.6));
-    if (bed.current) bed.current.scale.y = 1 + bloom * 1.5;
+    // a cama nasce do pó que cai da bica e floresce com a água
+    const grow = range(p, T.grind[0] + 0.015, T.grind[1]);
+    if (bed.current) {
+      bed.current.visible = grow > 0;
+      const rr = Math.sqrt(Math.max(grow, 0.001));
+      bed.current.scale.set(rr, (0.25 + grow * 0.75) * (1 + bloom * 1.5), rr);
+    }
     // o café sobe no cone durante o despejo e baixa enquanto escorre para a serpentina
     const rise = range(p, T.pour[0] + 0.01, T.pour[1]);
     const drain = range(p, T.pour[1], T.coil[1] + 0.02);
@@ -168,7 +174,8 @@ export default function Station({ progress, refs, cupLevel, cupImpact }: Props) 
     refs.coffeeHead.current = easeInOutCubic(range(p, T.drip[0], T.drip[0] + 0.012));
     refs.coffeeTail.current = range(p, T.drip[1] - 0.005, T.drip[1] + 0.012);
     refs.coffeeFlow.current = refs.coffeeHead.current * (1 - refs.coffeeTail.current);
-    cupLevel.current = range(p, T.fill[0], T.fill[1]);
+    // o café enche até ~70%; o gelo que cai depois desloca o nível um pouco mais
+    cupLevel.current = range(p, T.fill[0], T.fill[1]) * 0.7 + range(p, T.ice[0], T.ice[1] + 0.01) * 0.12;
     const surfY = CUP.position[1] + levelToY(cupLevel.current);
     refs.cupSurfaceY.current = surfY;
     const reach = (COFFEE_TOP - surfY) / COFFEE_LEN;

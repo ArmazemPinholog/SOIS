@@ -9,15 +9,15 @@ import { seeded } from "@/components/three/assets";
 import { clamp01, easeInOutCubic, range } from "@/components/three/math";
 import { MODEL_URLS, toFloatGeometry } from "./models";
 import type { StoryProgress } from "./StoryScene";
-import { GRINDER, T } from "./layout";
+import { GRINDER, T, hopperLift } from "./layout";
 
 /* Grãos reais (graodecafe.glb, instanciado): soltos no ar → formam o símbolo oficial →
    voam em arco para o funil do moedor → afundam na garganta enquanto ele mói. */
 
 const K = 0.022; // 1 unidade do SVG = K unidades da cena
-const CENTER = new THREE.Vector3(-7, 8.2, 0.4);
+const CENTER = new THREE.Vector3(0, 11.6, -0.4);
 const BEAN_LEN = 0.23;
-const HOPPER_SCALE = 0.55; // no funil os grãos ficam no tamanho real em relação ao moedor
+const HOPPER_SCALE = 0.5; // no funil os grãos ficam no tamanho real em relação ao moedor
 
 function beanGeometry(src: THREE.BufferGeometry) {
   const g = toFloatGeometry(src);
@@ -87,8 +87,8 @@ export default function StoryBeans({ progress }: { progress: StoryProgress }) {
       const scatter = new THREE.Vector3((rand() - 0.5) * 13, (rand() - 0.5) * 7, 1.5 - rand() * 4).add(CENTER);
       // monte dentro do funil (cone que abre para cima)
       const u = rand();
-      const y = GRINDER.throatY + 0.25 + Math.pow(u, 0.8) * 0.75;
-      const rCone = THREE.MathUtils.lerp(0.18, GRINDER.hopperRadius - 0.1, (y - GRINDER.throatY) / (hy - GRINDER.throatY));
+      const y = GRINDER.throatY + 0.18 + Math.pow(u, 0.8) * (hy - GRINDER.throatY - 0.35);
+      const rCone = THREE.MathUtils.lerp(0.12, GRINDER.hopperRadius - 0.08, (y - GRINDER.throatY) / (hy - GRINDER.throatY));
       const a = rand() * Math.PI * 2;
       const rr = Math.sqrt(rand()) * rCone;
       const hopper = new THREE.Vector3(hx + Math.cos(a) * rr, y, hz + Math.sin(a) * rr);
@@ -102,7 +102,8 @@ export default function StoryBeans({ progress }: { progress: StoryProgress }) {
         spin: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).multiplyScalar(1.4),
         phase: rand() * Math.PI * 2,
         delay: rand(),
-        flyDelay: (i % 7) / 7 * 0.6 + rand() * 0.4,
+        // cai primeiro quem está mais embaixo no símbolo
+        flyDelay: THREE.MathUtils.clamp(0.5 + (target.y - CENTER.y) / 6 + (rand() - 0.5) * 0.35, 0, 1),
         sinkOrder: 1 - (y - GRINDER.throatY) / (hy - GRINDER.throatY),
         half: pt.half === "top" ? -1 : 1,
       };
@@ -133,7 +134,8 @@ export default function StoryBeans({ progress }: { progress: StoryProgress }) {
     for (let i = 0; i < beans.length; i++) {
       const b = beans[i];
       const form = easeInOutCubic(clamp01((p - T.form[0] - b.delay * 0.06) / (T.form[1] - T.form[0] - 0.06)));
-      const fly = easeInOutCubic(clamp01((p - T.toGrinder[0] - b.flyDelay * 0.05) / (T.toGrinder[1] - T.toGrinder[0] - 0.05)));
+      const fall = clamp01((p - T.drop[0] - b.flyDelay * 0.035) / (T.drop[1] - T.drop[0] - 0.035));
+      const fly = fall * fall * (3 - 2 * fall);
 
       // solto no ar, reagindo ao mouse
       const fx = b.scatter.x + Math.sin(t * 0.45 + b.phase) * 0.35;
@@ -152,14 +154,16 @@ export default function StoryBeans({ progress }: { progress: StoryProgress }) {
 
       if (fly > 0) {
         // arco (Bézier quadrática) do símbolo até o monte no funil
-        ctrl.set((tPos.x + b.hopper.x) / 2 + b.half * 0.6, Math.max(tPos.y, b.hopper.y) + 1.6, (tPos.z + b.hopper.z) / 2 + 0.8);
+        // queda quase vertical (gravidade), com leve abertura para fora
+        ctrl.set((tPos.x + b.hopper.x) / 2 + b.half * 0.35, (tPos.y + b.hopper.y) / 2 + 0.6, (tPos.z + b.hopper.z) / 2 + 0.35);
         const u = fly;
         const a = (1 - u) * (1 - u);
         const bb = 2 * (1 - u) * u;
         const c = u * u;
+        const lift = hopperLift(p);
         tPos.set(
           a * tPos.x + bb * ctrl.x + c * b.hopper.x,
-          a * tPos.y + bb * ctrl.y + c * b.hopper.y,
+          a * tPos.y + bb * ctrl.y + c * (b.hopper.y + lift),
           a * tPos.z + bb * ctrl.z + c * b.hopper.z,
         );
         tEuler.set(u * b.spin.x * 8, u * b.spin.y * 8, u * b.spin.z * 8);
@@ -169,7 +173,7 @@ export default function StoryBeans({ progress }: { progress: StoryProgress }) {
       if (grind > 0) {
         // os de baixo somem primeiro, puxados para a garganta
         const s = clamp01((grind - b.sinkOrder * 0.7) / 0.3);
-        tPos.lerp(ctrl.set(GRINDER.hopperTop[0], GRINDER.throatY - 0.1, GRINDER.hopperTop[2]), s);
+        tPos.lerp(ctrl.set(GRINDER.hopperTop[0], GRINDER.throatY + hopperLift(p) - 0.1, GRINDER.hopperTop[2]), s);
         scale *= 1 - s;
       }
       tScale.setScalar(scale);

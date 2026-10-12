@@ -161,7 +161,7 @@ function World({ progress, rich }: { progress: StoryProgress; rich: boolean }) {
   const refs = useStationRefs();
   const cupLevel = useMemo(() => ({ current: 0 }), []);
   const cupImpact = useMemo(() => ({ current: 0 }), []);
-  const look = useMemo(() => new THREE.Vector3(-8.7, 8.1, 0), []);
+  const look = useMemo(() => new THREE.Vector3(-2.75, 11.5, -0.4), []);
   return (
     <>
       <color attach="background" args={["#f3e3c4"]} />
@@ -175,10 +175,10 @@ function World({ progress, rich }: { progress: StoryProgress; rich: boolean }) {
         shadow-mapSize={rich ? [2048, 2048] : [1024, 1024]}
         shadow-bias={-0.0003}
         shadow-normalBias={0.02}
-        shadow-camera-left={-13}
+        shadow-camera-left={-7}
         shadow-camera-right={7}
-        shadow-camera-top={9}
-        shadow-camera-bottom={-3}
+        shadow-camera-top={15}
+        shadow-camera-bottom={-2}
         shadow-camera-near={1}
         shadow-camera-far={40}
       />
@@ -216,7 +216,7 @@ export default function StoryScene({ progress, active, rich }: Props) {
       shadows={{ type: THREE.PCFShadowMap }}
       frameloop={active ? "always" : "never"}
       dpr={rich ? [1, 1.75] : [1, 1.3]}
-      camera={{ fov: 30, position: [-5.6, 7.3, 15.5], near: 0.1, far: 80 }}
+      camera={{ fov: 30, position: [1.0, 12.4, 16.2], near: 0.1, far: 80 }}
       gl={{ antialias: false, powerPreference: "high-performance" }}
     >
       <Suspense fallback={null}>

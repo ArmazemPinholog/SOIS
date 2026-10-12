@@ -39,6 +39,11 @@ Os prompts usados estão em `docs/prompts-3d.md`.
 - **Líquido em código** (`components/three/liquid/`) e laboratório em `/teste-liquido`.
 - Medidas de encaixe (funil, bica, colar do V60, bico da chaleira) estão em `components/story/layout.ts`.
 
+## Atualização 12/10/2026 (2) — história em cascata vertical
+Pedido do Christian: as etapas estavam desconectadas e o gelo "caía do nada". A história virou uma **cascata no eixo do V60**, seguindo a gravidade:
+símbolo de grãos no alto → grãos despencam no funil → **moedor em vista explodida** (o GLB foi separado em funil, corpo, base e copinho; base e copinho se afastam) → **pó cai da bica direto na cama do V60** → peças do moedor sobem e somem → **onda de café atravessa a tela** (transição, camada própria fora da pós-produção) → chaleira despeja em círculos → serpentina → copo enche → **cubos de gelo caem dentro do café com coroa de respingo e gotas** (guiado pelo scroll, reversível) → copo gira no final.
+Arquivos: `Grinder.tsx` (separação e explosão), `Ice.tsx` (gelo + coroa), `LiquidWipe.tsx` (onda), linha do tempo e câmera em `layout.ts`.
+
 ## Pendências
 **Com o Christian**
 - Testar a história no notebook e no celular reais (FPS e sensação do scroll); a nuvem só renderiza por software.

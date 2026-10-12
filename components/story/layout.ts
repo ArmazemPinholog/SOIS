@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { easeInOutCubic, range } from "@/components/three/math";
 
 /* Mundo da história: 1 unidade = 10 cm. Bancada em y = 0, parede ao fundo em z = -5.
    Os pontos de encaixe foram medidos nos GLBs (vistas ortográficas com grade) e convertidos
@@ -6,15 +7,18 @@ import * as THREE from "three";
 
 export type V3 = [number, number, number];
 
-/** Moedor (moedor.glb): bica para frente (+z). */
+/** Moedor (moedor.glb), flutuando desmontado logo acima do V60: a bica fica exatamente sobre o
+    coador, então o pó cai direto na cama do V60. Medidas locais (normalizadas) vindas do GLB:
+    bica (0, 0.44, 0.22), topo do funil y = 0.98, garganta y = 0.70, boca do funil r = 0.215. */
+const GS = 3.4;
+const G_POS: V3 = [0, 6.5 - 0.44 * GS, -0.22 * GS];
 export const GRINDER = {
-  scale: 4.4,
-  position: [-7, 0, 0] as V3,
-  hopperTop: [-7, 4.28, -0.1] as V3,
-  hopperRadius: 0.85,
-  throatY: 3.15,
-  chute: [-7, 1.94, 0.97] as V3,
-  catchCup: { center: [-7, 0.92, 0.93] as V3, radius: 0.36, bottomY: 0.36 },
+  scale: GS,
+  position: G_POS,
+  hopperTop: [0, G_POS[1] + 0.98 * GS, G_POS[2] - 0.03 * GS] as V3,
+  hopperRadius: 0.215 * GS,
+  throatY: G_POS[1] + 0.7 * GS,
+  chute: [0, 6.5, 0] as V3,
 };
 
 /** Suporte com V60 (suporte-coado.glb), posicionado para o eixo do V60 ficar em x = 0. */
@@ -76,32 +80,44 @@ export const CUP_INNER_BOTTOM = 0.045;
 
 /* ---------- linha do tempo (progresso 0..1 da seção da história) ---------- */
 export const T = {
-  form: [0.04, 0.2],
-  toGrinder: [0.25, 0.37],
-  grind: [0.35, 0.46],
-  kettleIn: [0.48, 0.55],
-  pour: [0.54, 0.665],
-  kettleOut: [0.665, 0.72],
-  bloom: [0.55, 0.68],
-  coil: [0.6, 0.71],
-  ice: [0.69, 0.75],
-  drip: [0.735, 0.885],
-  fill: [0.745, 0.885],
+  form: [0.04, 0.19],
+  /** grãos despencam do símbolo para dentro do funil */
+  drop: [0.235, 0.32],
+  /** moedor se desmonta: funil sobe, base e copinho se afastam */
+  explode: [0.29, 0.35],
+  grind: [0.33, 0.44],
+  /** peças do moedor saem de cena */
+  grinderOut: [0.43, 0.49],
+  /** onda de café atravessando a tela (transição) */
+  wipe1: [0.455, 0.515],
+  kettleIn: [0.49, 0.545],
+  pour: [0.535, 0.645],
+  kettleOut: [0.645, 0.7],
+  bloom: [0.54, 0.66],
+  coil: [0.6, 0.69],
+  drip: [0.685, 0.8],
+  fill: [0.695, 0.8],
+  /** cubos de gelo caindo dentro do café, um a um */
+  ice: [0.795, 0.865],
   turn: [0.88, 1],
 } as const;
+
+/** quanto o funil sobe na vista explodida (unidades do mundo) — os grãos dentro dele sobem junto */
+export const hopperLift = (p: number) => easeInOutCubic(range(p, T.explode[0], T.explode[1])) * 0.45;
 
 /* ---------- câmera (desktop): texto à esquerda, assunto à direita ---------- */
 /** sx = x do assunto em cena (no retrato a câmera centraliza nele em vez de deixar espaço para o texto) */
 type Key = { p: number; pos: V3; target: V3; sx: number };
 export const CAMERA_KEYS: Key[] = [
-  { p: 0.0, pos: [-5.6, 8.9, 15.5], target: [-8.7, 8.1, 0], sx: -7 },
-  { p: 0.22, pos: [-5.8, 8.6, 13.6], target: [-8.5, 8.0, 0], sx: -7 },
-  { p: 0.31, pos: [-4.2, 6.4, 10.8], target: [-8.1, 4.1, 0], sx: -7.1 },
-  { p: 0.41, pos: [-4.6, 3.2, 7.2], target: [-7.9, 1.75, 0.6], sx: -7.2 },
-  { p: 0.5, pos: [3.2, 6.4, 12.6], target: [-1.3, 3.6, 0], sx: 0.3 },
-  { p: 0.6, pos: [1.7, 10.6, 5.6], target: [-0.7, 3.75, 0], sx: 0.2 },
-  { p: 0.7, pos: [1.8, 3.5, 6.0], target: [-0.85, 1.95, 0], sx: 0 },
-  { p: 0.8, pos: [1.15, 3.15, 3.7], target: [-0.45, 1.05, 0], sx: 0 },
+  { p: 0.0, pos: [1.0, 12.4, 16.2], target: [-2.75, 11.5, -0.4], sx: 0 },
+  { p: 0.22, pos: [0.8, 12.1, 14.3], target: [-2.55, 11.4, -0.4], sx: 0 },
+  { p: 0.3, pos: [1.6, 9.9, 11.4], target: [-2.1, 8.5, -0.5], sx: 0 },
+  { p: 0.38, pos: [2.2, 7.9, 10.6], target: [-1.95, 5.6, -0.3], sx: 0 },
+  { p: 0.47, pos: [2.0, 9.0, 8.4], target: [-1.4, 4.1, 0], sx: 0 },
+  { p: 0.58, pos: [1.7, 10.6, 5.6], target: [-0.7, 3.75, 0], sx: 0.1 },
+  { p: 0.67, pos: [1.8, 3.5, 6.0], target: [-0.85, 1.95, 0], sx: 0 },
+  { p: 0.76, pos: [0.95, 3.25, 3.8], target: [-0.75, 1.05, 0], sx: 0 },
+  { p: 0.83, pos: [0.55, 3.75, 2.6], target: [-0.6, 1.15, 0], sx: 0 },
   { p: 0.92, pos: [0.6, 2.85, 4.5], target: [-0.9, 1.15, 0], sx: 0 },
   { p: 1.0, pos: [-0.3, 2.95, 5.0], target: [-1.0, 1.2, 0], sx: 0 },
 ];

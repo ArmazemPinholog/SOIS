@@ -9,19 +9,21 @@ import { SplitText } from "gsap/SplitText";
 import SoisSymbol from "@/components/SoisSymbol";
 import HeroSequence from "@/components/HeroSequence";
 import type { StoryProgress } from "./StoryScene";
+import { T } from "./layout";
 import "./story.css";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
 const StoryScene = dynamic(() => import("./StoryScene"), { ssr: false });
+const LiquidWipe = dynamic(() => import("./LiquidWipe"), { ssr: false });
 
 /* Capítulos (posição no progresso da seção). Os números batem com a linha do tempo em layout.ts. */
 const CHAPTERS = [
-  { id: "origem", n: "01", label: "Origem", at: 0.27, out: 0.355 },
-  { id: "moagem", n: "02", label: "Moagem", at: 0.375, out: 0.46 },
-  { id: "agua", n: "03", label: "Água", at: 0.52, out: 0.62 },
-  { id: "serpentina", n: "04", label: "Serpentina", at: 0.64, out: 0.72 },
-  { id: "gelo", n: "05", label: "Gelo", at: 0.75, out: 0.865 },
+  { id: "origem", n: "01", label: "Origem", at: 0.245, out: 0.31 },
+  { id: "moagem", n: "02", label: "Moagem", at: 0.335, out: 0.43 },
+  { id: "agua", n: "03", label: "Água", at: 0.525, out: 0.62 },
+  { id: "serpentina", n: "04", label: "Serpentina", at: 0.635, out: 0.69 },
+  { id: "gelo", n: "05", label: "Gelo", at: 0.745, out: 0.865 },
 ] as const;
 
 type Mode = "checking" | "3d" | "video";
@@ -134,9 +136,9 @@ export default function Story() {
         tl.fromTo(brand, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01 }, 0.12);
         tl.fromTo(".story__brand-letter", { yPercent: 115 }, { yPercent: 0, stagger: 0.008, duration: 0.04, ease: "power3.out" }, 0.12);
         tl.fromTo(".story__brand-line", { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, stagger: 0.01, duration: 0.03, ease: "power2.out" }, 0.16);
-        tl.to(".story__brand-letter", { yPercent: -115, stagger: 0.006, duration: 0.03, ease: "power2.in" }, 0.235);
-        tl.to(".story__brand-line", { autoAlpha: 0, y: -20, duration: 0.02 }, 0.24);
-        tl.set(brand, { autoAlpha: 0 }, 0.27);
+        tl.to(".story__brand-letter", { yPercent: -115, stagger: 0.006, duration: 0.03, ease: "power2.in" }, 0.205);
+        tl.to(".story__brand-line", { autoAlpha: 0, y: -20, duration: 0.02 }, 0.21);
+        tl.set(brand, { autoAlpha: 0 }, 0.24);
       }
 
       // capítulos: linhas reveladas por máscara, número com contador
@@ -174,6 +176,7 @@ export default function Story() {
     <section ref={section} className="story" id="inicio" aria-label="Sóis Café · Goa — o ritual">
       <div className="story__sticky">
         {mode === "3d" && <StoryScene progress={progress as StoryProgress} active={active} rich={rich} />}
+        {mode === "3d" && active && <LiquidWipe progress={progress as StoryProgress} windows={[T.wipe1]} />}
         <div className="story__veil" aria-hidden="true" />
         <div className="story__grain" aria-hidden="true" />
 
@@ -217,7 +220,7 @@ export default function Story() {
             <em>na hora.</em>
           </h2>
           <span className="story__rule" />
-          <p className="story__lead">O aroma começa aqui, segundos antes da água.</p>
+          <p className="story__lead">Direto da bica para o coador: o aroma começa aqui, segundos antes da água.</p>
         </article>
 
         <article className="story__panel story__panel--agua">
@@ -245,12 +248,12 @@ export default function Story() {
         <article className="story__panel story__panel--gelo">
           <p className="story__num">05 — Gelo</p>
           <h2 className="story__title">
-            Direto
+            Por último,
             <br />
-            <em>sobre o gelo.</em>
+            <em>o gelo.</em>
           </h2>
           <span className="story__rule" />
-          <p className="story__lead">O jeito Sóis de atravessar o calor de Goa.</p>
+          <p className="story__lead">Cubo a cubo, sobre o café recém-passado. O jeito Sóis de atravessar o calor de Goa.</p>
         </article>
 
         <article className="story__final">

@@ -24,6 +24,14 @@ html.is-loading body {
   inset: 0;
 }
 
+/* onda de café (transição) por cima da cena e dos textos */
+.story__wipe {
+  position: absolute !important;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
 /* véu de leitura à esquerda (texto sobre a cena) */
 .story__veil {
   position: absolute;
@@ -166,7 +174,7 @@ html.is-loading body {
 .story__title {
   font-family: var(--serif);
   font-weight: 500;
-  font-size: clamp(3rem, 7vw, 7.2rem);
+  font-size: clamp(2.8rem, 6vw, 6.6rem);
   line-height: 0.94;
   letter-spacing: -0.012em;
   color: var(--bordo);
