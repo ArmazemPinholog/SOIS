@@ -4,6 +4,10 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SoisSymbol from "./SoisSymbol";
+import { VIEWBOX } from "@/lib/soisSymbol";
+
+// ponto onde os dois sóis se encontram (centro do viewBox do símbolo)
+const SYMBOL_ORIGIN = `${VIEWBOX.w / 2} ${VIEWBOX.h / 2}`;
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -98,9 +102,10 @@ export default function HeroSequence() {
       if (!reduced) {
         const intro = gsap.timeline({ defaults: { ease: "power3.out" } });
         intro
-          .from(".hero .sun-top", { x: -36, y: -24, rotate: -35, svgOrigin: "100 130", opacity: 0, duration: 1.6 }, 0.2)
-          .from(".hero .sun-bottom", { x: 36, y: 24, rotate: -35, svgOrigin: "100 130", opacity: 0, duration: 1.6 }, 0.2)
+          .from(".hero .sun-top", { x: -36, y: -24, rotate: -35, svgOrigin: SYMBOL_ORIGIN, opacity: 0, duration: 1.6 }, 0.2)
+          .from(".hero .sun-bottom", { x: 36, y: 24, rotate: -35, svgOrigin: SYMBOL_ORIGIN, opacity: 0, duration: 1.6 }, 0.2)
           .from(".hero .sun-arc", { strokeDashoffset: 1, strokeDasharray: 1, duration: 1.4, ease: "power2.inOut" }, 0.3)
+          .from(".hero .sun-band", { opacity: 0, duration: 0.9, ease: "power2.out" }, 1.0)
           .from(".hero .sun-ray", { strokeDashoffset: 1, strokeDasharray: 1, duration: 0.7, stagger: 0.04 }, 0.8)
           .from(".hero__title span", { yPercent: 110, duration: 1.2, stagger: 0.08, ease: "expo.out" }, 0.6)
           .from(".hero__intro [data-intro]", { y: 20, opacity: 0, duration: 1, stagger: 0.1 }, 1.1)
