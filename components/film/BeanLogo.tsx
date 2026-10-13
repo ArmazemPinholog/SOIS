@@ -73,7 +73,8 @@ const IDQ = new THREE.Quaternion();
 function Beans({ progress, ready, slot, onReady }: Props) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const sweep = useRef<THREE.PointLight>(null);
-  const pointer = useRef({ x: 0, y: 0, sx: 0, sy: 0 });
+  const pointer = useRef({ x: 0, y: 0, sx: 0, sy: 0, px: -9999, py: -9999, lens: 0 });
+  const spinAcc = useRef<Float32Array | null>(null);
   const size = useThree((s) => s.size);
   const start = useRef(-1);
   const rects = useRef({ slot: new DOMRect() });
@@ -144,11 +145,20 @@ function Beans({ progress, ready, slot, onReady }: Props) {
   useLayoutEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
+      pointer.current.px = e.clientX;
+      pointer.current.py = e.clientY;
       pointer.current.x = e.clientX / window.innerWidth - 0.5;
       pointer.current.y = e.clientY / window.innerHeight - 0.5;
     };
+    const onLeave = () => {
+      pointer.current.px = pointer.current.py = -9999;
+    };
     window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
+    document.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerleave", onLeave);
+    };
   }, []);
 
   useFrame((state, delta) => {
@@ -214,6 +224,28 @@ function Beans({ progress, ready, slot, onReady }: Props) {
         y = cy - TV.y;
         z = TV.z;
         Q.premultiply(Qs.copy(TILT).slerp(IDQ, 1 - life));
+
+        // lupa: o grão sob o mouse cresce, vem para a frente e gira; os vizinhos abrem espaço
+        if (!spinAcc.current || spinAcc.current.length !== beans.length) spinAcc.current = new Float32Array(beans.length);
+        const lr = Math.max(60, sr.height * 0.16);
+        const ddx = x - pt.px;
+        const ddy = y - pt.py;
+        const lens = Math.exp(-(ddx * ddx + ddy * ddy) / (lr * lr)) * life;
+        if (lens > 0.002) {
+          const dl = Math.hypot(ddx, ddy) || 1;
+          x += (ddx / dl) * lens * lr * 0.18;
+          y += (ddy / dl) * lens * lr * 0.18;
+          z += 260 * lens;
+          scale *= 1 + 0.85 * lens;
+          spinAcc.current[i] += Math.min(delta, 0.05) * 5 * lens;
+        }
+        // longe do mouse o grão volta devagar para o lugar no símbolo
+        spinAcc.current[i] *= 1 - Math.min(1, Math.min(delta, 0.05) * 1.1 * (1 - lens));
+        const sp = spinAcc.current[i];
+        if (sp) {
+          E.set(sp * 0.6, sp, 0);
+          Q.multiply(Qs.setFromEuler(E));
+        }
       }
 
       // 2) explosão em direção à tela (pelo scroll): saem do símbolo acelerando, crescendo e girando
