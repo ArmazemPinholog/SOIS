@@ -1,4 +1,5 @@
-import Story from "@/components/story/Story";
+import Film from "@/components/film/Film";
+import CoffeeSpill from "@/components/CoffeeSpill";
 import ScrollEffects from "@/components/ScrollEffects";
 import SmoothScroll from "@/components/SmoothScroll";
 import SoisSymbol from "@/components/SoisSymbol";
@@ -61,7 +62,7 @@ export default function Home() {
       </header>
 
       <main>
-        <Story />
+        <Film />
 
         {/* 03 — O copo (cena 3b provisória: foto da marca até chegar o vídeo em alta) */}
         <section className="copo" id="copo">
@@ -102,6 +103,8 @@ export default function Home() {
             Good coffee · Bright people · Same sun
           </p>
         </section>
+
+        <CoffeeSpill />
 
         <section className="cardapio" id="cardapio">
           <div className="cardapio__head">

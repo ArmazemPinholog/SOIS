@@ -21,7 +21,11 @@ npm run build    # build de produção
 
 | Arquivo | O que faz |
 |---|---|
-| `components/story/Story.tsx` | Hero do site: história 3D por scroll (preloader, capítulos, índice) com fallback para o vídeo |
+| `components/film/Film.tsx` | Hero do site: filme de 6 tomadas esfregado pelo scroll (preloader, capítulos, palavras gigantes, cores por capítulo) |
+| `components/film/chapters.ts` | Roteiro do filme: trecho do scroll, textos, palavra, cor e recorte do celular de cada capítulo |
+| `public/video/` | Tomadas em MP4 (H.264) e WebM (VP9), sem áudio, com pôster WebP |
+| `components/CoffeeSpill.tsx` | Transição do café derramando que abre o cardápio |
+| `components/story/Story.tsx` | História 3D anterior (não usada na página; mantida como referência) |
 | `components/story/StoryScene.tsx` | Canvas 3D, luzes, bancada, câmera guiada pelo scroll e pós-produção |
 | `components/story/layout.ts` | Escalas, pontos de encaixe dos modelos, linha do tempo e câmera (tudo ajustável aqui) |
 | `components/story/*.tsx` | Grãos, moedor, estação de coado + chaleira, copo da Sóis, café no copo, gelo |
@@ -46,14 +50,15 @@ Cena em tempo real com Three.js (React Three Fiber), separada do site atual:
 | `components/three/assets.ts` | Geometria do grão e texturas geradas em código (estampa e parede com sombra de palmeira) |
 | `lib/soisSymbol.ts` | Traços do símbolo, usados pelo SVG, pelos grãos e pela estampa |
 
-## Trocar o vídeo do hero
+## Trocar uma tomada do hero
 
-1. Gere os frames em uma pasta nova (evita cache antigo):
+1. Codifique sem áudio e com keyframe curto (o scroll precisa saltar rápido):
    ```bash
-   npm run frames -- caminho/do/video.mp4 hero-v2 12
+   ffmpeg -i tomada.mp4 -an -vf "scale=1280:720,format=yuv420p" -c:v libx264 -crf 26 -g 4 -keyint_min 4 -bf 0 -movflags +faststart public/video/3-agua.mp4
+   ffmpeg -i public/video/3-agua.mp4 -c:v libvpx-vp9 -b:v 0 -crf 36 -g 4 -row-mt 1 -an public/video/3-agua.webm
+   ffmpeg -i public/video/3-agua.mp4 -frames:v 1 -quality 72 public/video/3-agua.webp
    ```
-2. Em `components/HeroSequence.tsx`, atualize `HERO_SEQUENCE` (`folder` e `count`).
-3. Ajuste em que ponto do scroll cada texto aparece (linha do tempo `tl`), se as cenas mudarem de duração.
+2. Se a duração mudar muito, ajuste `from`/`to` do capítulo em `components/film/chapters.ts`.
 
 ## Pendências de material
 

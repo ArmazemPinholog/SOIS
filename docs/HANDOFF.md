@@ -44,6 +44,15 @@ Pedido do Christian: as etapas estavam desconectadas e o gelo "caía do nada". A
 símbolo de grãos no alto → grãos despencam no funil → **moedor em vista explodida** (o GLB foi separado em funil, corpo, base e copinho; base e copinho se afastam) → **pó cai da bica direto na cama do V60** → peças do moedor sobem e somem → **onda de café atravessa a tela** (transição, camada própria fora da pós-produção) → chaleira despeja em círculos → serpentina → copo enche → **cubos de gelo caem dentro do café com coroa de respingo e gotas** (guiado pelo scroll, reversível) → copo gira no final.
 Arquivos: `Grinder.tsx` (separação e explosão), `Ice.tsx` (gelo + coroa), `LiquidWipe.tsx` (onda), linha do tempo e câmera em `layout.ts`.
 
+## Atualização 12/10/2026 (3) — hero em vídeo (filme por scroll)
+O Christian achou a cascata 3D "artificial". O hero virou um **filme de 6 tomadas geradas por IA** (imagens-chave K0–K6 → vídeos no Grok), esfregadas pelo scroll (`components/film/`):
+- `chapters.ts`: capítulos, trecho do scroll de cada um, palavra gigante, textos, tema de cor e foco do recorte no celular.
+- `Film.tsx`: baixa cada vídeo inteiro (blob) para o scroll ir e voltar sem travar; escolhe MP4/H.264 (Safari) ou WebM/VP9 (Chrome, Firefox, Android); transição suave entre tomadas; o vídeo final (copo girando) roda em loop atrás do texto final.
+- Layout editorial: quadro do vídeo à direita, palavra gigante atrás (GRÃO, MOER, FLORESCER, VOLTA, GELO, SOL), texto à esquerda, cor de fundo por capítulo (creme, areia, bordô, laranja, creme claro, café).
+- Vídeos em `public/video/` (`1-origem` … `6-final`, `.mp4` + `.webm` + pôster `.webp`). Origem, Moagem e Final vieram em 752×416 e passaram por upscale com Real-ESRGAN (realesr-general-x4v3); Serpentina recortada embaixo (o Grok escreveu "Sois" no copo); Gelo começa em 3,9 s (antes repetia o café enchendo e tinha uma folha verde). Áudio removido. Codificação com keyframe a cada 4 quadros para o scroll responder rápido.
+- **Café derramando** (`components/CoffeeSpill.tsx`): entre o manifesto e o cardápio, um fio cai e o café escorre pela tela (SVG com filtro "goo" + brilho especular) até cobrir tudo com a cor do cardápio.
+- A história 3D (`components/story/`) continua no repositório, mas não é mais usada na página.
+
 ## Pendências
 **Com o Christian**
 - Testar a história no notebook e no celular reais (FPS e sensação do scroll); a nuvem só renderiza por software.
