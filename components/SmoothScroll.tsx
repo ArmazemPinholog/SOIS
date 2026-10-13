@@ -29,7 +29,10 @@ export default function SmoothScroll() {
       const el = document.querySelector<HTMLElement>(id);
       if (!el) return;
       e.preventDefault();
-      lenis.scrollTo(el, { offset: 0, duration: 1.6 });
+      // avisa o filme que é navegação (não trava no "segure para servir")
+      const w = window as unknown as { __soisNav?: boolean };
+      w.__soisNav = true;
+      lenis.scrollTo(el, { offset: 0, duration: 1.6, onComplete: () => (w.__soisNav = false) });
     };
     document.addEventListener("click", onClick);
 

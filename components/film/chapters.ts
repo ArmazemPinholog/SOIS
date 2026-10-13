@@ -80,8 +80,8 @@ export const CHAPTERS: Chapter[] = [
     from: 0.54,
     to: 0.71,
     theme: "laranja",
-    focusX: 42,
-    detail: { x: 48, y: 50, zoom: 2.4 },
+    focusX: 62,
+    detail: { x: 63, y: 45, zoom: 2.4 },
   },
   {
     id: "gelo",

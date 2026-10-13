@@ -52,7 +52,8 @@ O Christian achou a cascata 3D "artificial". O hero virou um **filme de 6 tomada
 - Vídeos em `public/video/` (`1-origem` … `6-final`, `.mp4` + `.webm` + pôster `.webp`). Origem, Moagem e Final vieram em 752×416 e passaram por upscale com Real-ESRGAN (realesr-general-x4v3); Serpentina recortada embaixo (o Grok escreveu "Sois" no copo); Gelo começa em 3,9 s (antes repetia o café enchendo e tinha uma folha verde). Áudio removido. Codificação com keyframe a cada 4 quadros para o scroll responder rápido.
 - **Café escorrendo** (`components/CoffeeSpill.tsx`): entre o manifesto e o cardápio, filmagem real de líquido escorrendo (Mixkit, "Chocolate syrup covering a green background", licença gratuita) com o verde removido por chroma key com "unmix" e a cor puxada para café; versão larga (recorte do topo) e vertical para celular, controladas pelo scroll.
 - **Logo de grãos 3D** (`components/film/BeanLogo.tsx`): na abertura, grãos reais (GLB) formam o símbolo oficial e, ao rolar, caem no funil do primeiro vídeo.
-- **Pendente**: refazer a K4 e a tomada da Serpentina (tubo solto no bico do coador, fio de café caindo pelo meio da espiral, líquido com cara de mel).
+- **Serpentina nova** (13/10): take refeito pelo Christian com o tubo saindo do bico; usamos só 0–3,0 s (depois volta a cair um fio pelo meio da espiral), com upscale Real-ESRGAN.
+- **Abertura, segure para servir, cursor, quadros de detalhe e café nas emendas**: ver `components/film/` (`Film.tsx`, `LiquidLayer.tsx`, `BeanLogo.tsx`) e `components/Cursor.tsx`. O travamento do "segure" só acontece para quem rola aos poucos; saltos e links do menu (`window.__soisNav`) passam direto.
 - A história 3D (`components/story/`) continua no repositório, mas não é mais usada na página.
 
 ## Pendências

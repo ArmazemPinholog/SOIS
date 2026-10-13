@@ -173,6 +173,7 @@ export default function Film() {
     const hc = CHAPTERS[holdChapter];
     const lockP = hc?.hold ? hc.from + hc.hold.at * (hc.to - hc.from) : 2;
     const hold = { locked: false, done: false, h: 0, pressing: false, tries: 0, shown: false };
+    let prevTarget = 0;
     const lenis = () => (window as unknown as { __lenis?: Lenis }).__lenis;
     const yOf = (p: number) => el.offsetTop + p * (el.offsetHeight - window.innerHeight);
 
@@ -295,6 +296,12 @@ export default function Film() {
       if (hc?.hold) {
         const L = lenis();
         if (!L) hold.done = true; // sem scroll suave (movimento reduzido): segue direto
+        // só trava para quem chega rolando aos poucos; saltos e cliques no menu passam direto
+        const nav = (window as unknown as { __soisNav?: boolean }).__soisNav;
+        if (!hold.done && !hold.locked && pr.target >= lockP && (nav || prevTarget >= lockP || pr.target - lockP > 0.02)) {
+          hold.done = true;
+        }
+        prevTarget = pr.target;
         if (!hold.done && !hold.locked && pr.target >= lockP) {
           hold.locked = true;
           hold.h = 0;
