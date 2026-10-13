@@ -827,3 +827,117 @@ p {
   font-weight: 400;
   color: var(--laranja);
 }
+
+/* ---------- Cursor da marca ---------- */
+
+html.has-cursor,
+html.has-cursor a,
+html.has-cursor button {
+  cursor: none;
+}
+
+.cursor {
+  --p: 0;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.cursor.is-visible {
+  opacity: 1;
+}
+
+.cursor__dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bordo);
+  color: var(--creme);
+  box-shadow: 0 0 0 1.5px rgb(248 234 207 / 0.9);
+  transition:
+    width 0.45s var(--ease),
+    height 0.45s var(--ease),
+    background 0.3s,
+    scale 0.2s;
+}
+
+.cursor__dot svg {
+  position: absolute;
+  inset: -7px;
+  width: calc(100% + 14px);
+  height: calc(100% + 14px);
+  rotate: -90deg;
+  opacity: 0;
+}
+
+.cursor__dot circle {
+  fill: none;
+  stroke: var(--creme);
+  stroke-width: 3;
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--p));
+}
+
+.cursor__label {
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.cursor[data-mode="hover"] .cursor__dot {
+  width: 64px;
+  height: 64px;
+  background: rgb(106 30 30 / 0.92);
+}
+
+.cursor[data-mode="hover"] .cursor__label,
+.cursor[data-mode="hold"] .cursor__label {
+  opacity: 1;
+}
+
+.cursor[data-mode="hold"] .cursor__dot {
+  width: 104px;
+  height: 104px;
+  background: rgb(248 234 207 / 0.95);
+  color: var(--bordo);
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.55);
+}
+
+.cursor[data-mode="hold"] .cursor__label {
+  width: 78px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.55;
+}
+
+.cursor[data-mode="hold"] .cursor__dot svg {
+  opacity: 1;
+}
+
+.cursor[data-mode="hold"] .cursor__dot circle {
+  stroke: var(--bordo);
+}
+
+.cursor.is-down .cursor__dot {
+  scale: 0.88;
+}
+
+/* o Lenis já bloqueia a roda e o toque quando para (segure para servir);
+   o overflow: clip dele quebraria o position: sticky do filme */
+html.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: visible;
+}

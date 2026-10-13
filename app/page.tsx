@@ -1,5 +1,6 @@
 import Film from "@/components/film/Film";
 import CoffeeSpill from "@/components/CoffeeSpill";
+import Cursor from "@/components/Cursor";
 import ScrollEffects from "@/components/ScrollEffects";
 import SmoothScroll from "@/components/SmoothScroll";
 import SoisSymbol from "@/components/SoisSymbol";
@@ -43,6 +44,7 @@ export default function Home() {
   return (
     <>
       <SmoothScroll />
+      <Cursor />
       <ScrollEffects />
 
       <header className="nav">
@@ -120,7 +122,7 @@ export default function Home() {
           </div>
           <ul className="cardapio__grid">
             {CARDAPIO.map((item, i) => (
-              <li className="card" key={item.nome} data-reveal={(i % 3) * 0.08}>
+              <li className="card" key={item.nome} data-reveal={(i % 3) * 0.08} data-cursor="Provar">
                 <SoisSymbol className="card__sun" />
                 <span className="card__tag">{item.tag}</span>
                 <h3 className="card__name">{item.nome}</h3>

@@ -7,10 +7,11 @@ import * as THREE from "three";
 import { sampleSymbol, VIEWBOX } from "@/lib/soisSymbol";
 import { seeded } from "@/components/three/assets";
 import { MODEL_URLS, toFloatGeometry } from "@/components/story/models";
-import { BEAN_FALL } from "./chapters";
+import { BEAN_BURST } from "./chapters";
 
 /* Abertura: grãos de café reais (graodecafe.glb, instanciado) chegam de todos os lados e formam o
-   símbolo oficial da Sóis. Ao rolar, despencam no funil do moedor do primeiro vídeo.
+   símbolo oficial da Sóis. Ao rolar, explodem em direção à tela (crescem, giram e saem pelas bordas)
+   enquanto o café sobe e cobre a abertura.
    Câmera ortográfica em pixels: 1 unidade = 1 px da tela, para casar com o layout em CSS. */
 
 export type FilmProgress = RefObject<{ target: number; value: number }>;
@@ -20,13 +21,10 @@ type Props = {
   progress: FilmProgress;
   ready: boolean;
   slot: RefObject<HTMLDivElement | null>;
-  frame: RefObject<HTMLDivElement | null>;
   onReady?: () => void;
 };
 
 const BEAN_SVG_LEN = 15.5; // comprimento do grão em unidades do SVG do símbolo
-/** posição do funil dentro do quadro do vídeo 1 (fração da largura/altura) */
-const HOPPER = { x: 0.6, y: 0.5, r: 0.11 };
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -54,8 +52,8 @@ type Bean = {
   spin: THREE.Vector3;
   phase: number;
   delay: number;
-  fallDelay: number;
-  hopper: THREE.Vector2; // ponto de chegada no funil (fração do raio)
+  burstDelay: number;
+  burst: THREE.Vector2; // direção da explosão
   dark: boolean;
 };
 
@@ -68,11 +66,11 @@ const M = new THREE.Matrix4();
 const zAxis = new THREE.Vector3(0, 0, 1);
 const xAxis = new THREE.Vector3(1, 0, 0);
 
-function Beans({ progress, ready, slot, frame, onReady }: Props) {
+function Beans({ progress, ready, slot, onReady }: Props) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const size = useThree((s) => s.size);
   const start = useRef(-1);
-  const rects = useRef({ slot: new DOMRect(), frame: new DOMRect() });
+  const rects = useRef({ slot: new DOMRect() });
   const { scene } = useGLTF(MODEL_URLS.bean, false, true);
 
   const { geometry, material } = useMemo(() => {
@@ -93,8 +91,10 @@ function Beans({ progress, ready, slot, frame, onReady }: Props) {
     const r = seeded(21);
     return sampleSymbol(10.2).map((pt) => {
       const roll = r() < 0.55 ? Math.PI + (r() - 0.5) * 0.6 : (r() - 0.5) * 0.6;
-      const a = r() * Math.PI * 2;
-      const rr = Math.sqrt(r());
+      // explode para fora a partir do centro do símbolo, com um pouco de acaso
+      const dx = pt.x / VIEWBOX.w - 0.5 + (r() - 0.5) * 0.25;
+      const dy = pt.y / VIEWBOX.h - 0.5 + (r() - 0.5) * 0.25;
+      const dl = Math.hypot(dx, dy) || 1;
       return {
         sx: pt.x / VIEWBOX.w,
         sy: pt.y / VIEWBOX.h,
@@ -105,9 +105,9 @@ function Beans({ progress, ready, slot, frame, onReady }: Props) {
         spin: new THREE.Vector3(r() - 0.5, r() - 0.5, r() - 0.5).multiplyScalar(1.6),
         phase: r() * Math.PI * 2,
         delay: r(),
-        // caem primeiro os grãos de baixo, como um monte que desaba
-        fallDelay: clamp01(1 - pt.y / VIEWBOX.h + (r() - 0.5) * 0.3),
-        hopper: new THREE.Vector2(Math.cos(a) * rr, Math.sin(a) * rr * 0.35),
+        // os de fora saem primeiro, o centro por último
+        burstDelay: clamp01(0.55 - dl * 0.7 + r() * 0.35),
+        burst: new THREE.Vector2(dx / dl, dy / dl),
         dark: pt.half === "bottom",
       };
     });
@@ -124,23 +124,15 @@ function Beans({ progress, ready, slot, frame, onReady }: Props) {
     onReady?.();
   }, [beans, onReady]);
 
-  // mede o lugar do símbolo e o quadro do vídeo (layout em CSS)
+  // mede o lugar do símbolo (layout em CSS)
   useLayoutEffect(() => {
     const measure = () => {
       if (slot.current) rects.current.slot = slot.current.getBoundingClientRect();
-      if (frame.current) {
-        // o quadro tem escala animada pelo scroll; mede sem a transformação
-        const f = frame.current;
-        const prev = f.style.transform;
-        f.style.transform = "none";
-        rects.current.frame = f.getBoundingClientRect();
-        f.style.transform = prev;
-      }
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [slot, frame, size.width, size.height]);
+  }, [slot, size.width, size.height]);
 
   useFrame((state) => {
     const m = mesh.current;
@@ -151,16 +143,14 @@ function Beans({ progress, ready, slot, frame, onReady }: Props) {
     const p = progress.current.value;
     const W = size.width;
     const H = size.height;
-    const { slot: sr, frame: fr } = rects.current;
+    const { slot: sr } = rects.current;
     const beanPx = (BEAN_SVG_LEN / VIEWBOX.h) * sr.height;
     // px da tela → mundo (origem no centro, y para cima)
     const wx = (x: number) => x - W / 2;
     const wy = (y: number) => H / 2 - y;
-    const hx = fr.left + fr.width * HOPPER.x;
-    const hy = fr.top + fr.height * HOPPER.y;
-    const hr = fr.width * HOPPER.r;
-    const fallK = clamp01((p - BEAN_FALL[0]) / (BEAN_FALL[1] - BEAN_FALL[0]));
-    m.visible = fallK < 1;
+    const burstK = clamp01((p - BEAN_BURST[0]) / (BEAN_BURST[1] - BEAN_BURST[0]));
+    const reach = Math.hypot(W, H) * 0.75;
+    m.visible = burstK < 1;
     if (!m.visible) return;
 
     for (let i = 0; i < beans.length; i++) {
@@ -179,20 +169,16 @@ function Beans({ progress, ready, slot, frame, onReady }: Props) {
       Q.copy(Qs).slerp(b.quat, form);
       let scale = beanPx * (0.75 + 0.25 * form);
 
-      // 2) queda no funil (pelo scroll): gravidade no y, deriva suave no x
-      const u = clamp01((fallK - b.fallDelay * 0.35) / 0.65);
+      // 2) explosão em direção à tela (pelo scroll): saem do símbolo acelerando, crescendo e girando
+      const u = clamp01((burstK - b.burstDelay * 0.4) / 0.6);
       if (u > 0) {
-        const gx = hx + b.hopper.x * hr;
-        const gy = hy + b.hopper.y * hr;
-        const ex = u * u * (3 - 2 * u);
-        x = x + (gx - x) * ex;
-        y = y + (gy - y) * (u * u);
-        z = z + 120 * Math.sin(u * Math.PI);
-        E.set(u * b.spin.x * 9, u * b.spin.y * 9, u * b.spin.z * 9);
+        const e = u * u;
+        x += b.burst.x * reach * e;
+        y += b.burst.y * reach * e - 40 * Math.sin(u * Math.PI);
+        z += 600 * u;
+        E.set(u * b.spin.x * 7, u * b.spin.y * 7, u * b.spin.z * 7);
         Q.multiply(Qs.setFromEuler(E));
-        // os grãos do vídeo são menores: encolhem ao chegar e somem dentro do funil
-        scale *= 1 - 0.45 * u;
-        if (u > 0.9) scale *= 1 - (u - 0.9) / 0.1;
+        scale *= 1 + 4.5 * e;
       }
       P.set(wx(x), wy(y), z);
       S.setScalar(Math.max(scale, 0.0001));

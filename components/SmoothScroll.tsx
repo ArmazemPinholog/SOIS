@@ -13,6 +13,8 @@ export default function SmoothScroll() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const lenis = new Lenis({ lerp: 0.09, smoothWheel: true });
+    // o filme do hero pausa o scroll no "segure para servir"
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
     lenis.on("scroll", ScrollTrigger.update);
     const tick = (time: number) => lenis.raf(time * 1000);
     gsap.ticker.add(tick);
@@ -34,6 +36,7 @@ export default function SmoothScroll() {
     return () => {
       document.removeEventListener("click", onClick);
       gsap.ticker.remove(tick);
+      delete (window as unknown as { __lenis?: Lenis }).__lenis;
       lenis.destroy();
     };
   }, []);
