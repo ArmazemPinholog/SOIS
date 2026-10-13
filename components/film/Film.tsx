@@ -5,15 +5,14 @@ import dynamic from "next/dynamic";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
-import type Lenis from "lenis";
 import SoisSymbol from "@/components/SoisSymbol";
 import { BEAN_BURST, CAM, CHAPTERS, FINAL, OPEN_OUT, XFADE } from "./chapters";
-import ObjectStage, { type ObjectDraw, type ObjectStageHandle } from "./ObjectStage";
 import "./film.css";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
 const BeanLogo = dynamic(() => import("./BeanLogo"), { ssr: false });
+const Floaters = dynamic(() => import("./Floaters"), { ssr: false });
 
 function hasWebGL() {
   try {
@@ -23,40 +22,23 @@ function hasWebGL() {
   }
 }
 
-const SOURCES = [...CHAPTERS.map((c) => c.src), FINAL.src];
 const THEMES = [...CHAPTERS.map((c) => c.theme), FINAL.theme];
-const WORDS = [...CHAPTERS.map((c) => c.word), FINAL.word];
+const WORDS = CHAPTERS.map((c) => c.word);
 const FROM = [...CHAPTERS.map((c) => c.from), FINAL.from];
-const ENTER = [...CHAPTERS.map((c) => c.enter), FINAL.enter];
-const HOLD_SECONDS = 3.2; // quanto tempo segurando para servir tudo
+const BEAN_WIN: [number, number] = [OPEN_OUT - 0.012, CHAPTERS[1].to + 0.01];
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (a: number, b: number, x: number) => {
   const t = clamp01((x - a) / (b - a));
   return t * t * (3 - 2 * t);
 };
+const ease = (k: number) => k * k * (3 - 2 * k);
 
 /** Baixa o vídeo inteiro antes de usar: com o arquivo na memória o avanço/retrocesso pelo scroll fica instantâneo. */
-async function loadBlob(url: string, onProgress?: (k: number) => void) {
+async function loadBlob(url: string) {
   const res = await fetch(url);
-  const total = Number(res.headers.get("content-length")) || 0;
-  if (!res.body || !total) {
-    const b = await res.blob();
-    onProgress?.(1);
-    return URL.createObjectURL(b);
-  }
-  const reader = res.body.getReader();
-  const chunks: BlobPart[] = [];
-  let got = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    got += value.length;
-    onProgress?.(got / total);
-  }
-  onProgress?.(1);
-  return URL.createObjectURL(new Blob(chunks, { type: "video/mp4" }));
+  const b = await res.blob();
+  return URL.createObjectURL(b);
 }
 
 function Preloader({ progress, onDone }: { progress: number; onDone: () => void }) {
@@ -89,28 +71,42 @@ function Preloader({ progress, onDone }: { progress: number; onDone: () => void 
   );
 }
 
-function setCursor(label: string | null, progress = 0) {
-  window.dispatchEvent(new CustomEvent("sois:cursor", { detail: { label, progress } }));
+/** layout de cada peça (px): centro, altura e largura, no desktop e no celular */
+function layout(c: (typeof CHAPTERS)[number], W: number, H: number) {
+  const mobile = W < 821;
+  const aspect = c.w / c.h;
+  let h = (mobile ? c.size[1] : c.size[0]) * H;
+  const maxW = mobile ? W * 0.96 : W * 0.54;
+  if (h * aspect > maxW) h = maxW / aspect;
+  if (c.anchor === "coluna" && !mobile) h = Math.max(h, H * 1.04);
+  const x = mobile ? W / 2 : W * c.x;
+  // "base": a peça sai por baixo; "coluna": atravessa a tela (no celular fica no meio, com as pontas esfumadas)
+  const y = mobile ? (c.anchor === "coluna" ? H * 0.39 : H * 0.63 - h / 2) : c.anchor === "coluna" ? H * 0.5 : H * 1.015 - h / 2;
+  return { x, y, h, w: h * aspect };
 }
 
 export default function Film() {
   const section = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const videos = useRef<(HTMLVideoElement | null)[]>([]);
+  const pieces = useRef<(HTMLDivElement | null)[]>([]);
+  const finalVideo = useRef<HTMLVideoElement>(null);
   const slot = useRef<HTMLDivElement>(null);
-  const objects = useRef<ObjectStageHandle>(null);
   const palm = useRef<HTMLDivElement>(null);
-  const holdUi = useRef<HTMLDivElement>(null);
   const prog = useRef({ target: 0, value: 0 });
   const [firstProgress, setFirstProgress] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const [beans, setBeans] = useState(false); // logo de grãos em 3D disponível
+  const [beans, setBeans] = useState(false); // WebGL disponível (grãos e gelo em 3D)
   const [beansReady, setBeansReady] = useState(false);
   const [beansActive, setBeansActive] = useState(true);
+  const [floatActive, setFloatActive] = useState(false);
+  const [mobile, setMobile] = useState(false);
   const onBeansReady = useCallback(() => setBeansReady(true), []);
   const onLoaded = useCallback(() => setLoaded(true), []);
 
-  useEffect(() => setBeans(hasWebGL()), []);
+  useEffect(() => {
+    setBeans(hasWebGL());
+    setMobile(window.innerWidth < 821);
+  }, []);
 
   // sombra de palmeira do site (a mesma em todos os capítulos), gerada uma vez
   useEffect(() => {
@@ -126,37 +122,43 @@ export default function Film() {
     };
   }, []);
 
-  // carrega os vídeos em ordem; o primeiro alimenta o preloader
+  // pré-carrega as peças (alimentam o preloader); o vídeo final vem depois, sem segurar a abertura
   useEffect(() => {
     let alive = true;
-    const urls: string[] = [];
-    // H.264 (Safari/iOS) ou VP9 (Chrome, Firefox, Android)
-    const probe = document.createElement("video");
-    const ext = probe.canPlayType('video/mp4; codecs="avc1.42E01E"') ? ".mp4" : ".webm";
-    const attach = (i: number, src: string) => {
-      const v = videos.current[i];
+    let url = "";
+    const suf = window.innerWidth < 821 ? "-m" : "";
+    let done = 0;
+    Promise.all(
+      CHAPTERS.map(
+        (c) =>
+          new Promise<void>((res) => {
+            const im = new Image();
+            im.onload = im.onerror = () => {
+              done++;
+              if (alive) setFirstProgress(done / CHAPTERS.length);
+              res();
+            };
+            im.src = `/img/maquina/${c.img}${suf}.webp`;
+          }),
+      ),
+    ).then(async () => {
+      const probe = document.createElement("video");
+      const file = FINAL.src.replace(/\.mp4$/, probe.canPlayType('video/mp4; codecs="avc1.42E01E"') ? ".mp4" : ".webm");
+      try {
+        url = await loadBlob(file);
+      } catch {
+        url = file;
+      }
+      if (!alive) return;
+      const v = finalVideo.current;
       if (v) {
-        v.src = src;
+        v.src = url;
         v.load();
       }
-    };
-    (async () => {
-      for (let i = 0; i < SOURCES.length; i++) {
-        const file = SOURCES[i].replace(/\.mp4$/, ext);
-        try {
-          const url = await loadBlob(file, i === 0 ? (k) => alive && setFirstProgress(k) : undefined);
-          if (!alive) return URL.revokeObjectURL(url);
-          urls.push(url);
-          attach(i, url);
-        } catch {
-          attach(i, file); // sem blob: usa o arquivo direto
-          if (i === 0 && alive) setFirstProgress(1);
-        }
-      }
-    })();
+    });
     return () => {
       alive = false;
-      urls.forEach((u) => URL.revokeObjectURL(u));
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
     };
   }, []);
 
@@ -166,7 +168,7 @@ export default function Film() {
     return () => document.documentElement.classList.remove("is-loading");
   }, [loaded]);
 
-  // scroll → abertura, vídeos, café, tema e textos
+  // scroll → abertura, peças, tema e textos
   useEffect(() => {
     const el = section.current;
     const st = stage.current;
@@ -174,48 +176,8 @@ export default function Film() {
     const pr = prog.current;
     let theme = "";
     let beansOn = true;
+    let floatOn = false;
     let active = -2;
-
-    /* "segure para servir": o scroll para num ponto do capítulo e o vídeo só anda segurando */
-    const holdChapter = CHAPTERS.findIndex((c) => c.hold);
-    const hc = CHAPTERS[holdChapter];
-    const lockP = hc?.hold ? hc.from + hc.hold.at * (hc.to - hc.from) : 2;
-    const hold = { locked: false, done: false, h: 0, pressing: false, tries: 0, shown: false };
-    let prevTarget = 0;
-    const lenis = () => (window as unknown as { __lenis?: Lenis }).__lenis;
-    const yOf = (p: number) => el.offsetTop + p * (el.offsetHeight - window.innerHeight);
-
-    const press = (on: boolean) => {
-      hold.pressing = on && hold.locked;
-      st.classList.toggle("is-pressing", hold.pressing);
-    };
-    const onDown = (e: PointerEvent) => {
-      if (!hold.locked) return;
-      if ((e.target as HTMLElement).closest("a, button, .nav")) return;
-      press(true);
-    };
-    const onUp = () => press(false);
-    const onKey = (e: KeyboardEvent) => {
-      if (!hold.locked) return;
-      if (e.code === "Space" || e.code === "Enter") {
-        e.preventDefault();
-        press(e.type === "keydown");
-      } else if (e.type === "keydown") hold.tries++;
-    };
-    const onTry = () => {
-      if (!hold.locked) return;
-      hold.tries++;
-      holdUi.current?.classList.remove("is-nudge");
-      void holdUi.current?.offsetWidth;
-      holdUi.current?.classList.add("is-nudge");
-    };
-    window.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("keyup", onKey);
-    window.addEventListener("wheel", onTry, { passive: true });
-    window.addEventListener("touchmove", onTry, { passive: true });
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
@@ -226,12 +188,12 @@ export default function Film() {
           end: "bottom bottom",
           scrub: 0.6,
           onUpdate: (s) => {
-            if (!hold.locked) pr.target = s.progress;
+            pr.target = s.progress;
           },
         },
       });
 
-      // abertura: letreiro sobe e some enquanto o café sobe; depois a camada da abertura sai por baixo do café
+      // abertura: letreiro sobe e some; depois a camada da abertura sai e a primeira peça sobe
       tl.to(".film__open-mask", { yPercent: -70, autoAlpha: 0, stagger: 0.003, duration: 0.02, ease: "power2.in" }, 0.008);
       tl.to(".film__open-meta", { y: -30, autoAlpha: 0, duration: 0.016 }, 0.004);
       tl.to(".film__hint", { autoAlpha: 0, duration: 0.012 }, 0.002);
@@ -241,20 +203,17 @@ export default function Film() {
       const words = gsap.utils.toArray<HTMLElement>(".film__word");
       words.forEach((w, i) => {
         const from = FROM[i];
-        const to = i < CHAPTERS.length ? CHAPTERS[i].to : 1.02;
+        const to = CHAPTERS[i].to;
         const letters = w.querySelectorAll(".film__letter");
-        // a palavra nova só sobe depois que a anterior saiu (sem sobreposição na passagem)
         const wIn = i === 0 ? from - XFADE : from + 0.002;
         tl.set(w, { autoAlpha: 1 }, wIn);
         tl.fromTo(letters, { yPercent: 105 }, { yPercent: 0, stagger: 0.004, duration: 0.025, ease: "power3.out" }, wIn);
         tl.fromTo(w, { xPercent: 4 }, { xPercent: -4, duration: to - from + XFADE }, from - XFADE);
-        if (i < CHAPTERS.length) {
-          tl.to(letters, { yPercent: -105, stagger: 0.003, duration: 0.016, ease: "power2.in" }, to - 0.024);
-          tl.set(w, { autoAlpha: 0 }, to);
-        }
+        tl.to(letters, { yPercent: -105, stagger: 0.003, duration: 0.016, ease: "power2.in" }, to - 0.024);
+        tl.set(w, { autoAlpha: 0 }, to);
       });
 
-      // textos dos capítulos: número, linhas por máscara, régua e caixa de narração
+      // textos dos capítulos: número, linhas por máscara e caixa de narração
       CHAPTERS.forEach((c) => {
         const panel = el.querySelector<HTMLElement>(`.film__panel--${c.id}`);
         if (!panel) return;
@@ -265,10 +224,9 @@ export default function Film() {
         tl.set(panel, { autoAlpha: 1 }, at - 0.001);
         tl.fromTo(panel.querySelector(".film__num"), { autoAlpha: 0, x: -20 }, { autoAlpha: 1, x: 0, duration: 0.015 }, at);
         if (split) tl.fromTo(split.lines, { yPercent: 110 }, { yPercent: 0, stagger: 0.006, duration: 0.022, ease: "power3.out" }, at + 0.003);
-        tl.fromTo(panel.querySelector(".film__rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.03, ease: "power2.inOut" }, at + 0.006);
         tl.fromTo(panel.querySelector(".film__lead"), { autoAlpha: 0, y: 16, clipPath: "inset(0 100% 0 0)" }, { autoAlpha: 1, y: 0, clipPath: "inset(0 0% 0 0)", duration: 0.022 }, at + 0.014);
         if (split) tl.to(split.lines, { yPercent: -110, stagger: 0.004, duration: 0.016, ease: "power2.in" }, out);
-        tl.to(panel.querySelectorAll(".film__num, .film__lead, .film__rule"), { autoAlpha: 0, duration: 0.012 }, out);
+        tl.to(panel.querySelectorAll(".film__num, .film__lead"), { autoAlpha: 0, duration: 0.012 }, out);
         tl.set(panel, { autoAlpha: 0 }, out + 0.024);
       });
 
@@ -276,76 +234,17 @@ export default function Film() {
       const fin = el.querySelector<HTMLElement>(".film__final");
       if (fin) {
         const split = SplitText.create(fin.querySelector(".film__title")!, { type: "lines", mask: "lines", linesClass: "film__line" });
-        tl.set(fin, { autoAlpha: 1 }, FINAL.from + 0.01);
-        tl.fromTo(split.lines, { yPercent: 110 }, { yPercent: 0, stagger: 0.008, duration: 0.03, ease: "power3.out" }, FINAL.from + 0.01);
+        tl.set(fin, { autoAlpha: 1 }, FINAL.from + 0.012);
+        tl.fromTo(split.lines, { yPercent: 110 }, { yPercent: 0, stagger: 0.008, duration: 0.03, ease: "power3.out" }, FINAL.from + 0.012);
         tl.fromTo(fin.querySelectorAll(".film__lead, .film__ctas"), { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, stagger: 0.01, duration: 0.025 }, FINAL.from + 0.035);
       }
       tl.to({}, { duration: 0.0001 }, 1);
     }, el);
 
-    /** tempo do vídeo de um capítulo, levando em conta o trecho "segure para servir" */
-    const chapterTime = (i: number, p: number, dur: number) => {
-      const c = CHAPTERS[i];
-      const end = dur - 0.06;
-      const k = clamp01((p - c.from) / (c.to - c.from));
-      if (!c.hold) return k * end;
-      const tA = Math.min(c.hold.tA, end * 0.4);
-      const tB = Math.min(c.hold.tB, end * 0.92);
-      const at = c.hold.at;
-      // travado, o scroll fica um fio abaixo de `at` (amortecimento): conta como já no ponto
-      if (!hold.locked && k < at - 0.004) return (k / at) * tA;
-      if (!hold.done) return tA + hold.h * (tB - tA);
-      return tB + (Math.max(0, k - at) / (1 - at)) * (end - tB);
-    };
-
-    const tick = (time: number, dtMs: number) => {
+    const tick = (_time: number, dtMs: number) => {
       const dt = Math.min(dtMs / 1000, 0.1);
       pr.value += (pr.target - pr.value) * (1 - Math.exp(-7 * dt));
-      let p = pr.value;
-
-      // ---- segure para servir ----
-      if (hc?.hold) {
-        const L = lenis();
-        if (!L) hold.done = true; // sem scroll suave (movimento reduzido): segue direto
-        // só trava para quem chega rolando aos poucos; saltos e cliques no menu passam direto
-        const nav = (window as unknown as { __soisNav?: boolean }).__soisNav;
-        if (!hold.done && !hold.locked && pr.target >= lockP && (nav || prevTarget >= lockP || pr.target - lockP > 0.02)) {
-          hold.done = true;
-        }
-        prevTarget = pr.target;
-        if (!hold.done && !hold.locked && pr.target >= lockP) {
-          hold.locked = true;
-          hold.h = 0;
-          hold.tries = 0;
-          L?.scrollTo(yOf(lockP), { immediate: true, force: true });
-          L?.stop();
-          pr.target = lockP;
-        }
-        if (hold.locked) {
-          p = pr.value = Math.min(pr.value, lockP);
-          // quem insiste em rolar sem segurar: o café é servido sozinho, mais rápido
-          const rate = hold.pressing ? 1 / HOLD_SECONDS : hold.tries >= 6 ? 1 / 1.4 : 0;
-          hold.h = Math.min(1, hold.h + dt * rate);
-          holdUi.current?.style.setProperty("--hold", String(hold.h));
-          if (hold.h >= 1) {
-            hold.locked = false;
-            hold.done = true;
-            press(false);
-            L?.start();
-          }
-        }
-        if (!hold.locked && hold.done && pr.target < lockP - 0.01) {
-          hold.done = false; // voltou para antes: dá para servir de novo
-          hold.h = 0;
-        }
-        const show = hold.locked;
-        if (show !== hold.shown) {
-          hold.shown = show;
-          st.classList.toggle("is-holding", show);
-          setCursor(show ? "Segure para servir" : null);
-        }
-        if (show) setCursor("Segure para servir", hold.h);
-      }
+      const p = pr.value;
 
       gsap.set(".film__index-fill", { scaleY: p });
       const on = p < BEAN_BURST[1] + 0.01;
@@ -353,8 +252,13 @@ export default function Film() {
         beansOn = on;
         setBeansActive(on);
       }
+      const fl = (p > BEAN_WIN[0] - 0.01 && p < BEAN_WIN[1] + 0.01);
+      if (fl !== floatOn) {
+        floatOn = fl;
+        setFloatActive(fl);
+      }
 
-      // tema e capítulo ativo (troca no meio do movimento de câmera)
+      // tema e capítulo ativo (troca no meio da passagem)
       let a = -1;
       for (let i = 0; i < FROM.length; i++) if (p >= FROM[i]) a = i;
       const t = THEMES[Math.max(a, 0)];
@@ -367,67 +271,55 @@ export default function Film() {
         el.querySelectorAll(".film__index li").forEach((li, i) => li.classList.toggle("is-on", i === a));
       }
 
-      // ---- objetos recortados: a câmera desce pelo aparelho (bica → coador → serpentina → copo) ----
+      // ---- peças: a câmera desce pela máquina; a peça sai por cima e a próxima sobe por baixo ----
       const W = window.innerWidth;
       const H = window.innerHeight;
-      const mobile = W < 821;
-      const items: ObjectDraw[] = [];
-      videos.current.forEach((v, i) => {
-        if (!v) return;
-        const isFinal = i === CHAPTERS.length;
-        const from = FROM[i];
-        const to = isFinal ? 2 : CHAPTERS[i].to;
-        // entra subindo por baixo e sai por cima; o primeiro sobe quando o logo se desfaz
-        const kin = i === 0 ? smooth(OPEN_OUT - CAM * 2, OPEN_OUT + CAM * 0.5, p) : smooth(from - CAM, from + CAM, p);
-        const kout = isFinal ? 0 : smooth(to - CAM, to + CAM, p);
+      CHAPTERS.forEach((c, i) => {
+        const node = pieces.current[i];
+        if (!node) return;
+        const kin = i === 0 ? smooth(OPEN_OUT - CAM * 2, OPEN_OUT + CAM * 0.5, p) : smooth(c.from - CAM, c.from + CAM, p);
+        const kout = smooth(c.to - CAM, c.to + CAM, p);
         const visible = kin > 0.0005 && kout < 0.9995;
-        if (isFinal) {
-          if (visible && v.paused && v.readyState >= 2) v.play().catch(() => {});
-          else if (!visible && !v.paused) v.pause();
-        } else if (visible && v.duration) {
-          const vt = chapterTime(i, p, v.duration);
+        if (!visible) {
+          if (node.style.visibility !== "hidden") node.style.visibility = "hidden";
+          return;
+        }
+        node.style.visibility = "visible";
+        const L = layout(c, W, H);
+        // dentro do capítulo: a peça sobe devagar e chega um pouco mais perto (câmera viva)
+        const k = clamp01((p - c.from) / (c.to - c.from));
+        const drift = (0.5 - k) * H * 0.05;
+        // passagem: quem sai sobe e some na 1ª metade; quem entra sobe por baixo na 2ª (nunca as duas inteiras juntas)
+        const dy = (1 - ease(kin)) * H * 0.42 - ease(kout) * H * 0.42;
+        const opacity = ease(clamp01(kin * 1.6 - 0.6)) * (1 - ease(clamp01(kout * 1.6)));
+        const scale = (0.94 + 0.06 * ease(kin)) * (1 + 0.035 * k) * (1 + 0.05 * ease(kout));
+        node.style.width = `${L.w}px`;
+        node.style.height = `${L.h}px`;
+        node.style.opacity = String(opacity);
+        node.style.transform = `translate3d(${L.x - L.w / 2}px, ${L.y - L.h / 2 + dy + drift}px, 0) scale(${scale})`;
+      });
+
+      // ---- final: o gelo cai no café, em tela cheia ----
+      const v = finalVideo.current;
+      const kf = smooth(FINAL.from - CAM, FINAL.from + CAM * 0.6, p);
+      if (v) {
+        v.style.opacity = String(kf);
+        v.style.visibility = kf > 0.001 ? "visible" : "hidden";
+        if (kf > 0.001 && v.duration) {
+          const vt = clamp01((p - FINAL.from + CAM) / (1 - FINAL.from + CAM)) * (v.duration - 0.05);
           if (!v.seeking && Math.abs(v.currentTime - vt) > 1 / 40) v.currentTime = vt;
         }
-        if (!visible) return;
-        const ease = (k: number) => k * k * (3 - 2 * k);
-        // descer: a peça sai por cima e a próxima sobe; dissolver: mesma peça, troca no lugar com leve zoom
-        const inDissolve = i > 0 && ENTER[i] === "dissolve";
-        const outDissolve = !isFinal && ENTER[i + 1] === "dissolve";
-        const dy = (inDissolve ? 0 : (1 - ease(kin)) * H * 1.1) - (outDissolve ? 0 : ease(kout) * H * 1.1);
-        // passagem limpa: a cena atual se aproxima e some na 1ª metade; a próxima entra na 2ª (nunca as duas juntas)
-        const kIn2 = clamp01(kin * 2 - 1);
-        const kOut2 = clamp01(kout * 2);
-        const opacity = (inDissolve ? ease(kIn2) : 1) * (outDissolve ? 1 - ease(kOut2) : 1);
-        const zoom = (inDissolve ? 0.94 + 0.06 * ease(kIn2) : 1) * (outDissolve ? 1 + 0.08 * ease(kOut2) : 1);
-        const h = mobile ? H * 0.58 : H * 1.02;
-        const aspect = v.videoWidth ? v.videoWidth / (v.videoHeight / 2) : 16 / 9;
-        const fx = (i < CHAPTERS.length ? CHAPTERS[i].focusX : 50) / 100;
-        items.push({
-          i,
-          x: mobile ? W / 2 + (0.5 - fx) * h * aspect : W * 0.63,
-          y: (mobile ? H * 0.4 : H * 0.5) + dy,
-          h: h * zoom,
-          opacity,
-        });
-      });
-      objects.current?.draw(items);
+      }
     };
     gsap.ticker.add(tick);
 
     return () => {
       gsap.ticker.remove(tick);
-      window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("keyup", onKey);
-      window.removeEventListener("wheel", onTry);
-      window.removeEventListener("touchmove", onTry);
-      if (hold.locked) lenis()?.start();
-      setCursor(null);
       ctx.revert();
     };
   }, []);
+
+  const suf = mobile ? "-m" : "";
 
   return (
     <section ref={section} className="film" id="inicio" aria-label="Sóis Café · Goa — o ritual">
@@ -446,22 +338,31 @@ export default function Film() {
           ))}
         </div>
 
-        {/* vídeos de origem (escondidos): o palco WebGL desenha os objetos recortados */}
-        <div className="film__sources" aria-hidden="true">
-          {SOURCES.map((s, i) => (
-            <video
-              key={s}
-              ref={(v) => {
-                videos.current[i] = v;
+        {/* a máquina: uma peça por capítulo, em foto recortada de alta resolução */}
+        <div className="film__machine" aria-hidden="true">
+          {CHAPTERS.map((c, i) => (
+            <div
+              key={c.id}
+              ref={(d) => {
+                pieces.current[i] = d;
               }}
-              muted
-              playsInline
-              preload="auto"
-              loop={i === CHAPTERS.length}
-            />
+              className={`film__piece film__piece--${c.anchor}`}
+            >
+              <img src={`/img/maquina/${c.img}${suf}.webp`} alt="" draggable={false} decoding="async" />
+              {c.steam && (
+                <span className="film__steam" style={{ left: `${c.steam.x * 100}%`, top: `${c.steam.y * 100}%` }}>
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              )}
+            </div>
           ))}
         </div>
-        <ObjectStage ref={objects} videos={videos} className="film__objects" />
+
+        <video ref={finalVideo} className="film__finalvid" muted playsInline preload="auto" aria-hidden="true" />
+
+        {beans && <Floaters progress={prog} active={floatActive} beanWin={BEAN_WIN} />}
 
         {CHAPTERS.map((c) => (
           <article key={c.id} className={`film__panel film__panel--${c.id}`}>
@@ -473,7 +374,6 @@ export default function Film() {
               <br />
               <em>{c.title[1]}</em>
             </h2>
-            <span className="film__rule" />
             <p className="film__lead">{c.lead}</p>
           </article>
         ))}
@@ -486,10 +386,10 @@ export default function Film() {
           </h2>
           <p className="film__lead">Do grão ao gelo, cada etapa feita com calma e com o calor de Goa.</p>
           <div className="film__ctas">
-            <a className="btn btn--creme" href="#cardapio" data-cursor="Ver">
+            <a className="btn btn--bordo" href="#cardapio" data-cursor="Ver">
               Ver cardápio
             </a>
-            <a className="btn btn--ghost-light" href="#visite" data-cursor="Ver">
+            <a className="btn btn--ghost" href="#visite" data-cursor="Ver">
               Como chegar
             </a>
           </div>
@@ -506,19 +406,6 @@ export default function Film() {
             <span className="film__index-fill" />
           </span>
         </ol>
-
-        {/* segure para servir */}
-        <div ref={holdUi} className="film__hold" aria-live="polite">
-          <svg viewBox="0 0 120 120" aria-hidden="true">
-            <circle cx="60" cy="60" r="56" className="film__hold-track" />
-            <circle cx="60" cy="60" r="56" className="film__hold-ring" pathLength={1} />
-          </svg>
-          <span>
-            Segure
-            <br />
-            para servir
-          </span>
-        </div>
 
         {/* abertura */}
         <div className="film__opening">
