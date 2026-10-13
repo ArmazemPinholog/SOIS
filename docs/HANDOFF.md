@@ -50,7 +50,9 @@ O Christian achou a cascata 3D "artificial". O hero virou um **filme de 6 tomada
 - `Film.tsx`: baixa cada vídeo inteiro (blob) para o scroll ir e voltar sem travar; escolhe MP4/H.264 (Safari) ou WebM/VP9 (Chrome, Firefox, Android); transição suave entre tomadas; o vídeo final (copo girando) roda em loop atrás do texto final.
 - Layout editorial: quadro do vídeo à direita, palavra gigante atrás (GRÃO, MOER, FLORESCER, VOLTA, GELO, SOL), texto à esquerda, cor de fundo por capítulo (creme, areia, bordô, laranja, creme claro, café).
 - Vídeos em `public/video/` (`1-origem` … `6-final`, `.mp4` + `.webm` + pôster `.webp`). Origem, Moagem e Final vieram em 752×416 e passaram por upscale com Real-ESRGAN (realesr-general-x4v3); Serpentina recortada embaixo (o Grok escreveu "Sois" no copo); Gelo começa em 3,9 s (antes repetia o café enchendo e tinha uma folha verde). Áudio removido. Codificação com keyframe a cada 4 quadros para o scroll responder rápido.
-- **Café derramando** (`components/CoffeeSpill.tsx`): entre o manifesto e o cardápio, um fio cai e o café escorre pela tela (SVG com filtro "goo" + brilho especular) até cobrir tudo com a cor do cardápio.
+- **Café escorrendo** (`components/CoffeeSpill.tsx`): entre o manifesto e o cardápio, filmagem real de líquido escorrendo (Mixkit, "Chocolate syrup covering a green background", licença gratuita) com o verde removido por chroma key com "unmix" e a cor puxada para café; versão larga (recorte do topo) e vertical para celular, controladas pelo scroll.
+- **Logo de grãos 3D** (`components/film/BeanLogo.tsx`): na abertura, grãos reais (GLB) formam o símbolo oficial e, ao rolar, caem no funil do primeiro vídeo.
+- **Pendente**: refazer a K4 e a tomada da Serpentina (tubo solto no bico do coador, fio de café caindo pelo meio da espiral, líquido com cara de mel).
 - A história 3D (`components/story/`) continua no repositório, mas não é mais usada na página.
 
 ## Pendências

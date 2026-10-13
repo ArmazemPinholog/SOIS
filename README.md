@@ -24,7 +24,7 @@ npm run build    # build de produção
 | `components/film/Film.tsx` | Hero do site: filme de 6 tomadas esfregado pelo scroll (preloader, capítulos, palavras gigantes, cores por capítulo) |
 | `components/film/chapters.ts` | Roteiro do filme: trecho do scroll, textos, palavra, cor e recorte do celular de cada capítulo |
 | `public/video/` | Tomadas em MP4 (H.264) e WebM (VP9), sem áudio, com pôster WebP |
-| `components/CoffeeSpill.tsx` | Transição do café derramando que abre o cardápio |
+| `components/CoffeeSpill.tsx` | Café escorrendo (filmagem real) que abre o cardápio: `public/video/cafe-escorrendo*.mp4/webm`, a partir de "Chocolate syrup covering a green background" (Mixkit, licença gratuita), com o verde removido e a cor ajustada para café |
 | `components/story/Story.tsx` | História 3D anterior (não usada na página; mantida como referência) |
 | `components/story/StoryScene.tsx` | Canvas 3D, luzes, bancada, câmera guiada pelo scroll e pós-produção |
 | `components/story/layout.ts` | Escalas, pontos de encaixe dos modelos, linha do tempo e câmera (tudo ajustável aqui) |

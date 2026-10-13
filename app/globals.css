@@ -779,7 +779,7 @@ p {
 
 .spill {
   position: relative;
-  height: 230vh;
+  height: 260vh;
   margin-bottom: -1px;
 }
 
@@ -792,11 +792,21 @@ p {
   background: var(--creme);
 }
 
-.spill__svg {
+.spill__video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  object-position: 50% 0%;
+}
+
+/* depois que o café cobre a tela, assenta na cor exata do cardápio */
+.spill__fill {
+  position: absolute;
+  inset: 0;
+  background: var(--cafe);
+  opacity: clamp(0, calc((var(--spill, 0) - 0.84) * 9), 1);
 }
 
 .spill__word {
@@ -810,7 +820,7 @@ p {
   line-height: 0.9;
   white-space: nowrap;
   color: var(--creme);
-  opacity: clamp(0, calc((var(--spill, 0) - 0.78) * 6), 1);
+  opacity: clamp(0, calc((var(--spill, 0) - 0.82) * 7), 1);
 }
 
 .spill__word em {
