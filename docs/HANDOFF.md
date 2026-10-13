@@ -56,6 +56,12 @@ O Christian achou a cascata 3D "artificial". O hero virou um **filme de 6 tomada
 - **Abertura, segure para servir, cursor, quadros de detalhe e café nas emendas**: ver `components/film/` (`Film.tsx`, `LiquidLayer.tsx`, `BeanLogo.tsx`) e `components/Cursor.tsx`. O travamento do "segure" só acontece para quem rola aos poucos; saltos e links do menu (`window.__soisNav`) passam direto.
 - A história 3D (`components/story/`) continua no repositório, mas não é mais usada na página.
 
+## Atualização 13/10/2026 — objetos recortados (fundo verde)
+- O Christian refez as 6 tomadas no Grok com fundo verde. O script de recorte (`docs/recorte-verde.py`) recorta com chave adaptativa (o verde que amarela vira superfície ajustada por quadro), remove reflexos marcados e gera `public/video/obj/N-*.mp4|webm` com **cor em cima e alfa embaixo**.
+- `components/film/ObjectStage.tsx` desenha os objetos em WebGL com transparência real sobre a cor do capítulo; o shader puxa reflexos verdes para dourado/âmbar e suaviza as bordas de cima/baixo.
+- Passagens: Origem→Moagem a câmera desce; as demais são passagens limpas (a cena se aproxima e some, a próxima entra) — nunca dois objetos sobrepostos. Sombra de palmeira agora é do site (`.film__palm`).
+- Café nas emendas e quadro de detalhe saíram; o café real (vídeo novo do Christian) ficou só antes do cardápio.
+
 ## Pendências
 **Com o Christian**
 - Testar a história no notebook e no celular reais (FPS e sensação do scroll); a nuvem só renderiza por software.

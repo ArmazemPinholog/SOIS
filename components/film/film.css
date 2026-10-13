@@ -754,3 +754,60 @@ html.is-loading body {
     animation: none;
   }
 }
+
+/* ---------- objetos recortados (palco WebGL) e sombra de palmeira do site ---------- */
+.film__sources {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.film__sources video {
+  width: 2px;
+  height: 2px;
+}
+
+.film__objects {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.film__words {
+  z-index: 1;
+}
+
+.film__palm {
+  position: absolute;
+  inset: -6%;
+  z-index: 0;
+  pointer-events: none;
+  background-size: cover;
+  background-position: 60% 40%;
+  mix-blend-mode: multiply;
+  opacity: 0.32;
+  filter: blur(2px);
+  animation: film-palm 14s ease-in-out infinite alternate;
+}
+
+.film__stage[data-theme="bordo"] .film__palm,
+.film__stage[data-theme="cafe"] .film__palm {
+  opacity: 0.5;
+}
+
+@keyframes film-palm {
+  from { transform: translate3d(-1.2%, 0.6%, 0) rotate(-0.6deg); }
+  to { transform: translate3d(1.2%, -0.8%, 0) rotate(0.6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film__palm {
+    animation: none;
+  }
+}

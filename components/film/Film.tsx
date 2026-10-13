@@ -7,8 +7,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import type Lenis from "lenis";
 import SoisSymbol from "@/components/SoisSymbol";
-import { BEAN_BURST, CHAPTERS, DRAIN, FINAL, LIQUID_CUTS, LIQUID_HALF, LIQUID_IDLE, RISE, XFADE } from "./chapters";
-import LiquidLayer, { type LiquidHandle } from "./LiquidLayer";
+import { BEAN_BURST, CAM, CHAPTERS, FINAL, OPEN_OUT, XFADE } from "./chapters";
+import ObjectStage, { type ObjectDraw, type ObjectStageHandle } from "./ObjectStage";
 import "./film.css";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
@@ -24,10 +24,10 @@ function hasWebGL() {
 }
 
 const SOURCES = [...CHAPTERS.map((c) => c.src), FINAL.src];
-const POSTERS = [...CHAPTERS.map((c) => c.poster), FINAL.poster];
 const THEMES = [...CHAPTERS.map((c) => c.theme), FINAL.theme];
 const WORDS = [...CHAPTERS.map((c) => c.word), FINAL.word];
 const FROM = [...CHAPTERS.map((c) => c.from), FINAL.from];
+const ENTER = [...CHAPTERS.map((c) => c.enter), FINAL.enter];
 const HOLD_SECONDS = 3.2; // quanto tempo segurando para servir tudo
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -97,9 +97,9 @@ export default function Film() {
   const section = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const videos = useRef<(HTMLVideoElement | null)[]>([]);
-  const details = useRef<(HTMLVideoElement | null)[]>([]);
   const slot = useRef<HTMLDivElement>(null);
-  const liquid = useRef<LiquidHandle>(null);
+  const objects = useRef<ObjectStageHandle>(null);
+  const palm = useRef<HTMLDivElement>(null);
   const holdUi = useRef<HTMLDivElement>(null);
   const prog = useRef({ target: 0, value: 0 });
   const [firstProgress, setFirstProgress] = useState(0);
@@ -111,6 +111,20 @@ export default function Film() {
   const onLoaded = useCallback(() => setLoaded(true), []);
 
   useEffect(() => setBeans(hasWebGL()), []);
+
+  // sombra de palmeira do site (a mesma em todos os capítulos), gerada uma vez
+  useEffect(() => {
+    let alive = true;
+    import("@/components/three/assets").then((m) => {
+      const t = m.createPalmWallTexture();
+      const url = (t.image as HTMLCanvasElement).toDataURL("image/webp", 0.82);
+      t.dispose();
+      if (alive && palm.current) palm.current.style.backgroundImage = `url(${url})`;
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // carrega os vídeos em ordem; o primeiro alimenta o preloader
   useEffect(() => {
@@ -124,11 +138,6 @@ export default function Film() {
       if (v) {
         v.src = src;
         v.load();
-      }
-      const d = details.current[i];
-      if (d) {
-        d.src = src;
-        d.load();
       }
     };
     (async () => {
@@ -166,7 +175,6 @@ export default function Film() {
     let theme = "";
     let beansOn = true;
     let active = -2;
-    let detailOn = -2;
 
     /* "segure para servir": o scroll para num ponto do capítulo e o vídeo só anda segurando */
     const holdChapter = CHAPTERS.findIndex((c) => c.hold);
@@ -227,8 +235,7 @@ export default function Film() {
       tl.to(".film__open-mask", { yPercent: -70, autoAlpha: 0, stagger: 0.003, duration: 0.02, ease: "power2.in" }, 0.008);
       tl.to(".film__open-meta", { y: -30, autoAlpha: 0, duration: 0.016 }, 0.004);
       tl.to(".film__hint", { autoAlpha: 0, duration: 0.012 }, 0.002);
-      tl.set(".film__opening", { autoAlpha: 0 }, RISE[1]);
-      tl.fromTo(".film__frame", { scale: 1.08 }, { scale: 1, duration: DRAIN[1] - DRAIN[0], ease: "power2.out" }, DRAIN[0]);
+      tl.to(".film__opening", { autoAlpha: 0, duration: 0.012 }, OPEN_OUT - 0.012);
 
       // palavras gigantes: letras sobem, deslizam na horizontal e saem
       const words = gsap.utils.toArray<HTMLElement>(".film__word");
@@ -236,12 +243,14 @@ export default function Film() {
         const from = FROM[i];
         const to = i < CHAPTERS.length ? CHAPTERS[i].to : 1.02;
         const letters = w.querySelectorAll(".film__letter");
-        tl.set(w, { autoAlpha: 1 }, from - XFADE);
-        tl.fromTo(letters, { yPercent: 105 }, { yPercent: 0, stagger: 0.004, duration: 0.025, ease: "power3.out" }, from - XFADE);
+        // a palavra nova só sobe depois que a anterior saiu (sem sobreposição na passagem)
+        const wIn = i === 0 ? from - XFADE : from + 0.002;
+        tl.set(w, { autoAlpha: 1 }, wIn);
+        tl.fromTo(letters, { yPercent: 105 }, { yPercent: 0, stagger: 0.004, duration: 0.025, ease: "power3.out" }, wIn);
         tl.fromTo(w, { xPercent: 4 }, { xPercent: -4, duration: to - from + XFADE }, from - XFADE);
         if (i < CHAPTERS.length) {
-          tl.to(letters, { yPercent: -105, stagger: 0.003, duration: 0.02, ease: "power2.in" }, to - XFADE - 0.004);
-          tl.set(w, { autoAlpha: 0 }, to + XFADE);
+          tl.to(letters, { yPercent: -105, stagger: 0.003, duration: 0.016, ease: "power2.in" }, to - 0.024);
+          tl.set(w, { autoAlpha: 0 }, to);
         }
       });
 
@@ -280,7 +289,9 @@ export default function Film() {
       const end = dur - 0.06;
       const k = clamp01((p - c.from) / (c.to - c.from));
       if (!c.hold) return k * end;
-      const { at, tA, tB } = c.hold;
+      const tA = Math.min(c.hold.tA, end * 0.4);
+      const tB = Math.min(c.hold.tB, end * 0.92);
+      const at = c.hold.at;
       // travado, o scroll fica um fio abaixo de `at` (amortecimento): conta como já no ponto
       if (!hold.locked && k < at - 0.004) return (k / at) * tA;
       if (!hold.done) return tA + hold.h * (tB - tA);
@@ -343,39 +354,9 @@ export default function Film() {
         setBeansActive(on);
       }
 
-      // ---- café real: sobe na abertura, escoa revelando o capítulo 1 e atravessa as emendas ----
-      const lq = { k: 0, flipY: false, flipX: false, visible: false };
-      if (p < RISE[1]) {
-        const r = clamp01((p - RISE[0]) / (RISE[1] - RISE[0]));
-        const idle = LIQUID_IDLE + Math.sin(time * 0.9) * 0.025;
-        lq.k = idle + (1 - idle) * r * r;
-        lq.flipY = true;
-        lq.flipX = true;
-        lq.visible = true;
-      } else if (p < DRAIN[1]) {
-        lq.k = 1 - smooth(DRAIN[0], DRAIN[1], p);
-        lq.flipY = true;
-        lq.visible = true;
-      }
-      LIQUID_CUTS.forEach((cut, i) => {
-        if (Math.abs(p - cut) >= LIQUID_HALF) return;
-        lq.visible = true;
-        if (p < cut) {
-          lq.k = smooth(cut - LIQUID_HALF, cut, p);
-          lq.flipY = false;
-          lq.flipX = i % 2 === 1;
-        } else {
-          lq.k = 1 - smooth(cut, cut + LIQUID_HALF, p);
-          lq.flipY = true;
-          lq.flipX = i % 2 === 0;
-        }
-      });
-      liquid.current?.set(lq);
-
-      // tema e capítulo ativo
+      // tema e capítulo ativo (troca no meio do movimento de câmera)
       let a = -1;
-      // nas emendas com café a cor só troca quando a tela já está coberta
-      for (let i = 0; i < FROM.length; i++) if (p >= FROM[i] - (LIQUID_CUTS.includes(FROM[i]) ? 0 : XFADE)) a = i;
+      for (let i = 0; i < FROM.length; i++) if (p >= FROM[i]) a = i;
       const t = THEMES[Math.max(a, 0)];
       if (t !== theme) {
         theme = t;
@@ -386,41 +367,50 @@ export default function Film() {
         el.querySelectorAll(".film__index li").forEach((li, i) => li.classList.toggle("is-on", i === a));
       }
 
-      // quadro de detalhe do capítulo atual
-      let dOn = -1;
-      CHAPTERS.forEach((c, i) => {
-        if (p > c.from + 0.012 && p < c.to - 0.026) dOn = i;
-      });
-      if (dOn !== detailOn) {
-        detailOn = dOn;
-        st.classList.toggle("has-detail", dOn >= 0);
-        details.current.forEach((d, i) => d?.classList.toggle("is-on", i === dOn));
-      }
-
-      // vídeos: opacidade (transição suave entre tomadas) e posição no tempo
+      // ---- objetos recortados: a câmera desce pelo aparelho (bica → coador → serpentina → copo) ----
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      const mobile = W < 821;
+      const items: ObjectDraw[] = [];
       videos.current.forEach((v, i) => {
         if (!v) return;
         const isFinal = i === CHAPTERS.length;
         const from = FROM[i];
         const to = isFinal ? 2 : CHAPTERS[i].to;
-        const fadeIn = i === 0 ? 1 : smooth(from - XFADE, from + XFADE, p);
-        const fadeOut = isFinal || i === CHAPTERS.length - 1 ? 1 : 1 - smooth(to + XFADE, to + XFADE * 1.6, p);
-        // o vídeo de baixo só some depois que o de cima cobriu tudo
-        const o = isFinal ? fadeIn : fadeIn * fadeOut;
-        v.style.opacity = String(o);
-        v.style.visibility = o > 0.001 ? "visible" : "hidden";
-
+        // entra subindo por baixo e sai por cima; o primeiro sobe quando o logo se desfaz
+        const kin = i === 0 ? smooth(OPEN_OUT - CAM * 2, OPEN_OUT + CAM * 0.5, p) : smooth(from - CAM, from + CAM, p);
+        const kout = isFinal ? 0 : smooth(to - CAM, to + CAM, p);
+        const visible = kin > 0.0005 && kout < 0.9995;
         if (isFinal) {
-          if (o > 0.01 && v.paused && v.readyState >= 2) v.play().catch(() => {});
-          else if (o <= 0.01 && !v.paused) v.pause();
-          return;
+          if (visible && v.paused && v.readyState >= 2) v.play().catch(() => {});
+          else if (!visible && !v.paused) v.pause();
+        } else if (visible && v.duration) {
+          const vt = chapterTime(i, p, v.duration);
+          if (!v.seeking && Math.abs(v.currentTime - vt) > 1 / 40) v.currentTime = vt;
         }
-        if (!v.duration || o <= 0.001) return;
-        const vt = chapterTime(i, p, v.duration);
-        if (!v.seeking && Math.abs(v.currentTime - vt) > 1 / 40) v.currentTime = vt;
-        const d = details.current[i];
-        if (d && i === detailOn && d.duration && !d.seeking && Math.abs(d.currentTime - vt) > 1 / 30) d.currentTime = vt;
+        if (!visible) return;
+        const ease = (k: number) => k * k * (3 - 2 * k);
+        // descer: a peça sai por cima e a próxima sobe; dissolver: mesma peça, troca no lugar com leve zoom
+        const inDissolve = i > 0 && ENTER[i] === "dissolve";
+        const outDissolve = !isFinal && ENTER[i + 1] === "dissolve";
+        const dy = (inDissolve ? 0 : (1 - ease(kin)) * H * 1.1) - (outDissolve ? 0 : ease(kout) * H * 1.1);
+        // passagem limpa: a cena atual se aproxima e some na 1ª metade; a próxima entra na 2ª (nunca as duas juntas)
+        const kIn2 = clamp01(kin * 2 - 1);
+        const kOut2 = clamp01(kout * 2);
+        const opacity = (inDissolve ? ease(kIn2) : 1) * (outDissolve ? 1 - ease(kOut2) : 1);
+        const zoom = (inDissolve ? 0.94 + 0.06 * ease(kIn2) : 1) * (outDissolve ? 1 + 0.08 * ease(kOut2) : 1);
+        const h = mobile ? H * 0.58 : H * 1.02;
+        const aspect = v.videoWidth ? v.videoWidth / (v.videoHeight / 2) : 16 / 9;
+        const fx = (i < CHAPTERS.length ? CHAPTERS[i].focusX : 50) / 100;
+        items.push({
+          i,
+          x: mobile ? W / 2 + (0.5 - fx) * h * aspect : W * 0.63,
+          y: (mobile ? H * 0.4 : H * 0.5) + dy,
+          h: h * zoom,
+          opacity,
+        });
       });
+      objects.current?.draw(items);
     };
     gsap.ticker.add(tick);
 
@@ -442,6 +432,8 @@ export default function Film() {
   return (
     <section ref={section} className="film" id="inicio" aria-label="Sóis Café · Goa — o ritual">
       <div ref={stage} className="film__stage" data-theme="creme">
+        <div ref={palm} className="film__palm" aria-hidden="true" />
+        <div className="film__grain" aria-hidden="true" />
         <div className="film__words" aria-hidden="true">
           {WORDS.map((w, i) => (
             <p key={w} className={`film__word film__word--${i}`} style={{ ["--len" as string]: w.length }}>
@@ -454,42 +446,22 @@ export default function Film() {
           ))}
         </div>
 
-        <div className="film__frame">
+        {/* vídeos de origem (escondidos): o palco WebGL desenha os objetos recortados */}
+        <div className="film__sources" aria-hidden="true">
           {SOURCES.map((s, i) => (
             <video
               key={s}
               ref={(v) => {
                 videos.current[i] = v;
               }}
-              className="film__video"
-              poster={POSTERS[i]}
               muted
               playsInline
               preload="auto"
               loop={i === CHAPTERS.length}
-              style={{ ["--fx" as string]: `${i < CHAPTERS.length ? CHAPTERS[i].focusX : 50}%`, opacity: i === 0 ? 1 : 0 }}
-              aria-hidden="true"
-            />
-          ))}
-          <div className="film__grain" aria-hidden="true" />
-        </div>
-
-        {/* quadro de detalhe: o mesmo vídeo, ampliado num ponto da cena */}
-        <div className="film__detail" aria-hidden="true">
-          {CHAPTERS.map((c, i) => (
-            <video
-              key={c.id}
-              ref={(v) => {
-                details.current[i] = v;
-              }}
-              className="film__detail-video"
-              muted
-              playsInline
-              preload="auto"
-              style={{ transformOrigin: `${c.detail.x}% ${c.detail.y}%`, ["--zoom" as string]: c.detail.zoom }}
             />
           ))}
         </div>
+        <ObjectStage ref={objects} videos={videos} className="film__objects" />
 
         {CHAPTERS.map((c) => (
           <article key={c.id} className={`film__panel film__panel--${c.id}`}>
@@ -570,7 +542,6 @@ export default function Film() {
           </div>
         </div>
 
-        <LiquidLayer ref={liquid} className="film__liquid" />
         {beans && <BeanLogo progress={prog} ready={loaded && beansReady} slot={slot} active={beansActive} onReady={onBeansReady} />}
 
         <div className="film__hint" aria-hidden="true">
