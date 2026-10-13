@@ -1,5 +1,6 @@
 import Film from "@/components/film/Film";
 import CoffeeSpill from "@/components/CoffeeSpill";
+import MenuOrbit from "@/components/MenuOrbit";
 import Cursor from "@/components/Cursor";
 import ScrollEffects from "@/components/ScrollEffects";
 import SmoothScroll from "@/components/SmoothScroll";
@@ -107,6 +108,8 @@ export default function Home() {
         </section>
 
         <CoffeeSpill />
+
+        <MenuOrbit items={CARDAPIO} />
 
         <section className="cardapio" id="cardapio">
           <div className="cardapio__head">

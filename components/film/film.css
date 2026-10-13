@@ -24,7 +24,7 @@ html.is-loading body {
   overflow: hidden;
   background: var(--bg);
   color: var(--body);
-  transition: background-color 0.9s var(--ease), color 0.9s var(--ease);
+  transition: color 0.6s var(--ease);
 }
 
 .film__stage[data-theme="areia"] {
@@ -88,7 +88,8 @@ html.is-loading body {
   font-size: min(calc(100vw / (var(--len) * 0.69)), 34vw, 64vh);
   line-height: 0.78;
   letter-spacing: -0.02em;
-  color: var(--word);
+  /* palavra fantasma: quase da cor do fundo, o produto manda na tela */
+  color: color-mix(in srgb, var(--word) 17%, var(--bg));
   white-space: nowrap;
   visibility: hidden;
   transition: color 0.9s var(--ease);
@@ -903,4 +904,23 @@ html.is-loading body {
   .film__palm {
     animation: none;
   }
+}
+
+/* ---------- onda de café entre as seções ---------- */
+.film__wave {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.film__wave svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.film__wave-liquid {
+  filter: drop-shadow(0 -0.6px 0.4px rgb(255 226 190 / 0.35));
 }

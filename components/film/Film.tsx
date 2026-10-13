@@ -25,6 +25,25 @@ function hasWebGL() {
 const THEMES = [...CHAPTERS.map((c) => c.theme), FINAL.theme];
 const WORDS = CHAPTERS.map((c) => c.word);
 const FROM = [...CHAPTERS.map((c) => c.from), FINAL.from];
+/** cor de fundo de cada tema (a onda entre as seções pinta com a cor da próxima) */
+const THEME_BG: Record<string, string> = {
+  creme: "#f8eacf",
+  areia: "#ecd3a9",
+  claro: "#fcf5e7",
+  cafe: "#30211a",
+  bordo: "#6a1e1e",
+  laranja: "#e0892f",
+};
+const DROPS = [0.18, 0.34, 0.52, 0.69, 0.83];
+
+/** borda de cima ondulada (viewBox 0–100), subindo de baixo (k=0) até cobrir tudo (k=1) */
+function wavePath(k: number, lead: number, amp: number, phase: number) {
+  const top = 100 - (k * (100 + amp * 2 + lead)) + lead;
+  let d = `M0,${(top + Math.sin(phase) * amp).toFixed(2)}`;
+  for (let x = 5; x <= 100; x += 5) d += ` L${x},${(top + Math.sin(phase + x * 0.075) * amp + Math.sin(phase * 1.7 + x * 0.19) * amp * 0.35).toFixed(2)}`;
+  return d + " L100,140 L0,140 Z";
+}
+
 const BEAN_WIN: [number, number] = [OPEN_OUT - 0.012, CHAPTERS[1].to + 0.01];
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -90,6 +109,7 @@ export default function Film() {
   const stage = useRef<HTMLDivElement>(null);
   const pieces = useRef<(HTMLDivElement | null)[]>([]);
   const finalVideo = useRef<HTMLVideoElement>(null);
+  const wave = useRef<HTMLDivElement>(null);
   const slot = useRef<HTMLDivElement>(null);
   const palm = useRef<HTMLDivElement>(null);
   const prog = useRef({ target: 0, value: 0 });
@@ -258,13 +278,42 @@ export default function Film() {
         setFloatActive(fl);
       }
 
-      // tema e capítulo ativo (troca no meio da passagem)
+      // ---- onda entre as seções: o café passa primeiro e a cor da próxima seção sobe atrás ----
+      let wi = -1;
+      for (let i = 1; i < FROM.length; i++) if (p > FROM[i] - CAM * 1.4 && p < FROM[i] + 0.001) wi = i;
+      const wv = wave.current;
+      if (wv) {
+        if (wi < 0) {
+          if (wv.style.visibility !== "hidden") wv.style.visibility = "hidden";
+        } else {
+          const kw = smooth(FROM[wi] - CAM * 1.4, FROM[wi], p);
+          const ph = p * 60;
+          wv.style.visibility = "visible";
+          wv.querySelector<SVGPathElement>(".film__wave-liquid")!.setAttribute("d", wavePath(kw, 14, 4.5, ph));
+          const bgp = wv.querySelector<SVGPathElement>(".film__wave-bg")!;
+          bgp.setAttribute("d", wavePath(kw, 0, 2.6, ph + 0.8));
+          bgp.style.fill = THEME_BG[THEMES[wi]];
+          const top = 100 - kw * (100 + 9 + 14) + 14;
+          wv.querySelectorAll<SVGEllipseElement>(".film__drop").forEach((c, j) => {
+            const life = Math.sin(clamp01(kw * 1.3 - j * 0.05) * Math.PI);
+            c.setAttribute("cx", String(DROPS[j] * 100));
+            c.setAttribute("cy", String(top - 3 - life * (6 + j * 2.2)));
+            const r = 0.35 + 0.5 * life * ((j % 3) * 0.3 + 0.6);
+            c.setAttribute("ry", String(r));
+            c.setAttribute("rx", String((r * window.innerHeight) / window.innerWidth));
+            c.style.opacity = String(life);
+          });
+        }
+      }
+
+      // tema e capítulo ativo (troca quando a onda termina de cobrir a tela)
       let a = -1;
       for (let i = 0; i < FROM.length; i++) if (p >= FROM[i]) a = i;
       const t = THEMES[Math.max(a, 0)];
       if (t !== theme) {
         theme = t;
         st.dataset.theme = t;
+        st.style.backgroundColor = THEME_BG[t];
       }
       if (a !== active) {
         active = a;
@@ -291,7 +340,8 @@ export default function Film() {
         const drift = (0.5 - k) * H * 0.05;
         // passagem: quem sai sobe e some na 1ª metade; quem entra sobe por baixo na 2ª (nunca as duas inteiras juntas)
         const dy = (1 - ease(kin)) * H * 0.42 - ease(kout) * H * 0.42;
-        const opacity = ease(clamp01(kin * 1.6 - 0.6)) * (1 - ease(clamp01(kout * 1.6)));
+        // a onda de café cobre a peça que sai (ela só some debaixo da onda); a próxima surge depois
+        const opacity = (i === 0 ? ease(clamp01(kin * 1.6 - 0.6)) : ease(clamp01((kin - 0.42) * 2))) * (kout < 0.5 ? 1 : 0);
         const scale = (0.94 + 0.06 * ease(kin)) * (1 + 0.035 * k) * (1 + 0.05 * ease(kout));
         node.style.width = `${L.w}px`;
         node.style.height = `${L.h}px`;
@@ -336,6 +386,24 @@ export default function Film() {
               ))}
             </p>
           ))}
+        </div>
+
+        {/* onda de café entre as seções */}
+        <div ref={wave} className="film__wave" aria-hidden="true">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="film-liquid" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#7a4a2c" />
+                <stop offset="0.25" stopColor="#4a2a1a" />
+                <stop offset="1" stopColor="#2b1810" />
+              </linearGradient>
+            </defs>
+            <path className="film__wave-liquid" fill="url(#film-liquid)" />
+            <path className="film__wave-bg" />
+            {DROPS.map((d) => (
+              <ellipse key={d} className="film__drop" rx="0" ry="0" fill="#4a2a1a" />
+            ))}
+          </svg>
         </div>
 
         {/* a máquina: uma peça por capítulo, em foto recortada de alta resolução */}

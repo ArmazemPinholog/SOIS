@@ -89,7 +89,7 @@ export const CHAPTERS: Chapter[] = [
     h: 1093,
     from: 0.47,
     to: 0.61,
-    theme: "creme",
+    theme: "cafe",
     size: [0.74, 0.44],
     anchor: "base",
     x: 0.65,

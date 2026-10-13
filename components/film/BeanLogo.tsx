@@ -66,8 +66,14 @@ const M = new THREE.Matrix4();
 const zAxis = new THREE.Vector3(0, 0, 1);
 const xAxis = new THREE.Vector3(1, 0, 0);
 
+const TILT = new THREE.Quaternion();
+const TV = new THREE.Vector3();
+const IDQ = new THREE.Quaternion();
+
 function Beans({ progress, ready, slot, onReady }: Props) {
   const mesh = useRef<THREE.InstancedMesh>(null);
+  const sweep = useRef<THREE.PointLight>(null);
+  const pointer = useRef({ x: 0, y: 0, sx: 0, sy: 0 });
   const size = useThree((s) => s.size);
   const start = useRef(-1);
   const rects = useRef({ slot: new DOMRect() });
@@ -134,10 +140,36 @@ function Beans({ progress, ready, slot, onReady }: Props) {
     return () => window.removeEventListener("resize", measure);
   }, [slot, size.width, size.height]);
 
-  useFrame((state) => {
+  // micromovimento: o símbolo inclina devagar seguindo o mouse (no celular, um balanço automático)
+  useLayoutEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      pointer.current.x = e.clientX / window.innerWidth - 0.5;
+      pointer.current.y = e.clientY / window.innerHeight - 0.5;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
+
+  useFrame((state, delta) => {
     const m = mesh.current;
     if (!m) return;
     const t = state.clock.elapsedTime;
+    const pt = pointer.current;
+    const touch = size.width < 821;
+    const tx = touch ? Math.sin(t * 0.45) * 0.22 : pt.x;
+    const ty = touch ? Math.cos(t * 0.33) * 0.16 : pt.y;
+    const kf = 1 - Math.exp(-2.4 * Math.min(delta, 0.1));
+    pt.sx += (tx - pt.sx) * kf;
+    pt.sy += (ty - pt.sy) * kf;
+    E.set(pt.sy * 0.42, pt.sx * 0.55, 0);
+    TILT.setFromEuler(E);
+    // um brilho de luz atravessa os grãos a cada poucos segundos
+    if (sweep.current) {
+      const cyc = (t % 6.5) / 6.5;
+      sweep.current.position.set((cyc * 1.8 - 0.9) * size.width, size.height * 0.25, 420);
+      sweep.current.intensity = Math.sin(Math.min(1, cyc * 1.25) * Math.PI) * 2.2e5;
+    }
     if (ready && start.current < 0) start.current = t;
     const since = start.current < 0 ? 0 : t - start.current;
     const p = progress.current.value;
@@ -169,6 +201,21 @@ function Beans({ progress, ready, slot, onReady }: Props) {
       Q.copy(Qs).slerp(b.quat, form);
       let scale = beanPx * (0.75 + 0.25 * form);
 
+      // formado: cada grão "respira" (leve giro e pulsação próprios) e o símbolo inclina como peça só
+      if (form > 0) {
+        const life = form * form;
+        E.set(Math.sin(t * 0.9 + b.phase) * 0.16 * life, Math.cos(t * 0.7 + b.phase * 1.7) * 0.2 * life, Math.sin(t * 0.6 + b.phase * 0.5) * 0.06 * life);
+        Q.multiply(Qs.setFromEuler(E));
+        scale *= 1 + Math.sin(t * 1.4 + b.phase) * 0.025 * life;
+        const cx = sr.left + sr.width / 2;
+        const cy = sr.top + sr.height / 2;
+        TV.set(x - cx, cy - y, z).applyQuaternion(Qs.copy(TILT).slerp(IDQ, 1 - life));
+        x = cx + TV.x;
+        y = cy - TV.y;
+        z = TV.z;
+        Q.premultiply(Qs.copy(TILT).slerp(IDQ, 1 - life));
+      }
+
       // 2) explosão em direção à tela (pelo scroll): saem do símbolo acelerando, crescendo e girando
       const u = clamp01((burstK - b.burstDelay * 0.4) / 0.6);
       if (u > 0) {
@@ -188,7 +235,12 @@ function Beans({ progress, ready, slot, onReady }: Props) {
     m.instanceMatrix.needsUpdate = true;
   });
 
-  return <instancedMesh ref={mesh} args={[geometry, material, beans.length]} frustumCulled={false} />;
+  return (
+    <>
+      <pointLight ref={sweep} color="#fff0d6" distance={0} decay={2} intensity={0} />
+      <instancedMesh ref={mesh} args={[geometry, material, beans.length]} frustumCulled={false} />
+    </>
+  );
 }
 
 export default function BeanLogo(props: Props & { active: boolean }) {
