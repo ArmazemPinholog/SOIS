@@ -22,7 +22,15 @@ type Props = {
   ready: boolean;
   slot: RefObject<HTMLDivElement | null>;
   onReady?: () => void;
+  /** trecho do scroll em que os grãos explodem (padrão: o do filme) */
+  burst?: [number, number];
+  /** os grãos fogem do cursor */
+  repel?: boolean;
 };
+
+/** raio e empurrão do cursor, em fração da altura do símbolo */
+const REPEL_RADIUS = 0.42;
+const REPEL_PUSH = 0.2;
 
 const BEAN_SVG_LEN = 15.5; // comprimento do grão em unidades do SVG do símbolo
 
@@ -66,8 +74,9 @@ const M = new THREE.Matrix4();
 const zAxis = new THREE.Vector3(0, 0, 1);
 const xAxis = new THREE.Vector3(1, 0, 0);
 
-function Beans({ progress, ready, slot, onReady }: Props) {
+function Beans({ progress, ready, slot, onReady, burst = BEAN_BURST, repel = false }: Props) {
   const mesh = useRef<THREE.InstancedMesh>(null);
+  const mouse = useRef({ x: -9999, y: -9999, sx: -9999, sy: -9999 });
   const size = useThree((s) => s.size);
   const start = useRef(-1);
   const rects = useRef({ slot: new DOMRect() });
@@ -134,9 +143,39 @@ function Beans({ progress, ready, slot, onReady }: Props) {
     return () => window.removeEventListener("resize", measure);
   }, [slot, size.width, size.height]);
 
-  useFrame((state) => {
+  useLayoutEffect(() => {
+    if (!repel) return;
+    // só com mouse: no toque o último ponto ficaria "preso" e os grãos não voltariam ao símbolo
+    const far = () => {
+      mouse.current.x = -99999;
+      mouse.current.y = -99999;
+    };
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return far();
+      mouse.current.x = e.clientX;
+      mouse.current.y = e.clientY;
+    };
+    window.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerleave", far);
+    window.addEventListener("blur", far);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerleave", far);
+      window.removeEventListener("blur", far);
+    };
+  }, [repel]);
+
+  useFrame((state, delta) => {
     const m = mesh.current;
     if (!m) return;
+    const ms = mouse.current;
+    if (ms.sx < -9000 || ms.x < -9000) {
+      ms.sx = ms.x;
+      ms.sy = ms.y;
+    }
+    const mk = 1 - Math.exp(-6 * Math.min(delta, 0.1));
+    ms.sx += (ms.x - ms.sx) * mk;
+    ms.sy += (ms.y - ms.sy) * mk;
     const t = state.clock.elapsedTime;
     if (ready && start.current < 0) start.current = t;
     const since = start.current < 0 ? 0 : t - start.current;
@@ -148,7 +187,7 @@ function Beans({ progress, ready, slot, onReady }: Props) {
     // px da tela → mundo (origem no centro, y para cima)
     const wx = (x: number) => x - W / 2;
     const wy = (y: number) => H / 2 - y;
-    const burstK = clamp01((p - BEAN_BURST[0]) / (BEAN_BURST[1] - BEAN_BURST[0]));
+    const burstK = clamp01((p - burst[0]) / (burst[1] - burst[0]));
     const reach = Math.hypot(W, H) * 0.75;
     m.visible = burstK < 1;
     if (!m.visible) return;
@@ -168,6 +207,21 @@ function Beans({ progress, ready, slot, onReady }: Props) {
       Qs.setFromEuler(E);
       Q.copy(Qs).slerp(b.quat, form);
       let scale = beanPx * (0.75 + 0.25 * form);
+
+      // o cursor empurra os grãos para fora (e eles giram um pouco ao fugir)
+      if (repel && form > 0.2) {
+        const dx = x - ms.sx;
+        const dy = y - ms.sy;
+        const dl = Math.hypot(dx, dy) || 1;
+        const R = REPEL_RADIUS * sr.height;
+        const f = Math.max(0, 1 - dl / R);
+        const k = f * f * form;
+        const push = k * REPEL_PUSH * sr.height;
+        x += (dx / dl) * push;
+        y += (dy / dl) * push;
+        z += push * 2;
+        if (k > 0.01) Q.multiply(Qs.setFromAxisAngle(zAxis, k * 1.2 * (b.phase > Math.PI ? 1 : -1)));
+      }
 
       // 2) explosão em direção à tela (pelo scroll): saem do símbolo acelerando, crescendo e girando
       const u = clamp01((burstK - b.burstDelay * 0.4) / 0.6);

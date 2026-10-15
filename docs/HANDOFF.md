@@ -56,6 +56,17 @@ O Christian achou a cascata 3D "artificial". O hero virou um **filme de 6 tomada
 - **Abertura, segure para servir, cursor, quadros de detalhe e café nas emendas**: ver `components/film/` (`Film.tsx`, `LiquidLayer.tsx`, `BeanLogo.tsx`) e `components/Cursor.tsx`. O travamento do "segure" só acontece para quem rola aos poucos; saltos e links do menu (`window.__soisNav`) passam direto.
 - A história 3D (`components/story/`) continua no repositório, mas não é mais usada na página.
 
+## Atualização 15/10/2026 — hero "Ritual" (plano-sequência em WebGL)
+Pedido do Christian: um hero mais estruturado, com rolagem fluida e de alta produção, usando os vídeos e o 3D e o máximo de efeitos de CSS e JS (referência citada: naocodei.com/free-code — o site estava bloqueado pela rede da sessão na nuvem, então os efeitos foram escolhidos do catálogo da skill "sites nível award" e de bibliotecas conhecidas).
+- **Momento uau**: o copo da Sóis gira dentro das letras de SÓIS; ao rolar, a câmera atravessa o "I" e o filme ocupa a tela inteira.
+- **Estrutura**: abertura → 01 Origem → 02 Moagem → 03 Água (segure para servir) → 04 Serpentina → 05 Gelo → final (o vídeo vira quadro com "Seu café, sob o mesmo sol."). Roteiro em `components/ritual/script.ts`.
+- **Transições**: tinta (grão → moagem é o mesmo enquadramento, vira "morph"), café real (moagem → água, a camada `LiquidLayer` de antes), gota (água → serpentina), onda no copo (serpentina → gelo), tinta (gelo → copo).
+- **Compositor WebGL próprio** (`RitualGL.ts` + `shaders.ts`, sem Three): os `<video>` continuam no DOM e viram textura. O quadro novo é copiado no evento `seeked` (esperar o render não funciona: cada quadro pede outro seek antes de desenhar).
+- **Grãos 3D** (`components/film/BeanLogo.tsx`) ganharam `burst` configurável e `repel` (fogem do mouse; no toque fica desligado).
+- **O hero anterior** continua em `/filme` para comparar (`components/HomePage.tsx` recebe o hero como prop).
+- Dados do painel lateral (torra, dose, °C…) são provisórios.
+- Testado na nuvem com Chromium por software (2–6 fps, só serve para conferir quadros): desktop 1440×900, celular 390×844, sem WebGL, movimento reduzido e o "segure para servir". **Falta testar FPS e sensação no notebook e no celular reais.**
+
 ## Pendências
 **Com o Christian**
 - Testar a história no notebook e no celular reais (FPS e sensação do scroll); a nuvem só renderiza por software.
