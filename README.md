@@ -21,10 +21,10 @@ npm run build    # build de produção
 
 | Arquivo | O que faz |
 |---|---|
-| `components/ritual/Ritual.tsx` | **Hero do site ("Ritual")**: abertura com o copo girando dentro das letras de SÓIS, câmera que atravessa as letras, 5 capítulos em tela cheia esfregados pelo scroll, final em quadro com o convite |
-| `components/ritual/script.ts` | Roteiro do hero: trecho do scroll de cada capítulo, transições entre tomadas, textos, dados do painel lateral (provisórios) e o "segure para servir" |
+| `components/ritual/Ritual.tsx` | **Hero do site ("Ritual")**: abertura com o copo girando dentro das letras de SÓIS, câmera que atravessa as letras, plano-sequência de 10 tomadas encadeadas sem corte (grão → pôr do sol com dois sóis) esfregado pelo scroll, 8 capítulos de texto, final em quadro com o convite |
+| `components/ritual/script.ts` | Roteiro do hero: tomadas (`SHOTS`, com o encaixe medido de cada emenda), capítulos de texto, transições, textos, dados do painel lateral (provisórios) e o "segure para servir" |
 | `components/ritual/RitualGL.ts` | Compositor WebGL: vídeos viram textura, máscara das letras, transições, quadro do final; sem WebGL os `<video>` aparecem direto |
-| `components/ritual/shaders.ts` | Shader das transições (tinta, onda, gota), aberração cromática pela velocidade do scroll, grão, vinheta e o "sol" que segue o mouse |
+| `components/ritual/shaders.ts` | Shader das transições (tinta, onda, gota, emenda), aberração cromática pela velocidade do scroll, grão, vinheta e o "sol" que segue o mouse |
 | `components/ritual/fx.ts` | Botões magnéticos, timecode, download dos vídeos em blob e curvas de easing |
 | `components/ritual/ritual.css` | Layout do hero, tons por capítulo, HUD, preloader, selo giratório, botões |
 | `components/HomePage.tsx` | Página inicial com o hero trocável: `/` usa o Ritual, `/filme` mostra o hero anterior para comparar |
@@ -69,7 +69,7 @@ Um momento central (o copo dentro das letras e a câmera atravessando) e o resto
 - **Interação**: scroll suave (Lenis) · cursor da marca · botões magnéticos · índice de capítulos clicável · "segure para servir" no capítulo Água
 - **Acessibilidade e celular**: texto real para leitores de tela, sem WebGL cai nos `<video>`, movimento reduzido desliga o scroll suave e os efeitos de velocidade, layout próprio no celular
 
-Para ajustar o ritmo, mexa em `components/ritual/script.ts` (trechos `from`/`to`, `CUTS`, `INTRO`, `CARD`).
+Para ajustar o ritmo, mexa em `components/ritual/script.ts` (trechos `from`/`to` de `SHOTS` e `CHAPTERS`, `INTRO`, `CARD`, `TOTAL_VH`). Os originais das tomadas ficam em `S/V/` (V1…V9b); as versões do site em `public/video/ritual/`.
 
 ## Trocar uma tomada do hero
 

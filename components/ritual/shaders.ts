@@ -24,7 +24,7 @@ uniform sampler2D uB;
 uniform vec4 uFitA;      // foco x, foco y, zoom, proporção do vídeo
 uniform vec4 uFitB;
 uniform float uMix;      // 0 = só A, 1 = só B
-uniform float uStyle;    // 0 tinta · 1 onda · 2 gota · 3 corte seco (por baixo do café real)
+uniform float uStyle;    // 0 tinta · 1 onda · 2 gota · 3 corte seco (por baixo do café real) · 4 emenda
 uniform vec2 uOrigin;    // origem da onda (fração do quadro)
 
 uniform vec4 uRect;      // quadro do vídeo em px: x, y, largura, altura
@@ -153,8 +153,11 @@ void main() {
       edge = rim;
       qb.y -= (1.0 - uMix) * 0.08 * (1.0 - q.y);
       qa.y += pulse * 0.025 * b;
-    } else {
+    } else if (uStyle < 3.5) {
       b = step(0.5, uMix); // por baixo do café real: troca seca
+    } else {
+      // emenda entre tomadas encadeadas: os quadros já casam, então é só uma fusão curta e limpa
+      b = uMix * uMix * (3.0 - 2.0 * uMix);
     }
   }
 

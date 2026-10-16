@@ -9,7 +9,11 @@ import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import type Lenis from "lenis";
 import SoisSymbol from "@/components/SoisSymbol";
 import LiquidLayer, { type LiquidHandle } from "@/components/film/LiquidLayer";
-import { CARD, CHAPTERS, CUTS, FINAL, HOLD_SECONDS, INTRO, LIQUID_HALF, LOOP_VIDEO, SEQUENCE, STYLE_ID, VIDEOS, type Chapter } from "./script";
+import { CARD, CHAPTERS, CUTS, FINAL, HOLD_SECONDS, INTRO, LIQUID_HALF, LOOP_VIDEO, SEQUENCE, SHOT_ZOOM, SHOTS, STYLE_ID, TL_SCALE, TOTAL_VH, VIDEOS, type Chapter, type Shot } from "./script";
+
+/** tempos do roteiro desenhados para a trilha antiga (1250vh), na escala da atual */
+const u = (x: number) => x * TL_SCALE;
+const HAS_LIQUID = CUTS.some((c) => c.style === "liquid");
 import { RitualGL, TitleMask, type GLState } from "./RitualGL";
 import { clamp01, easeInOutCubic, easeOutExpo, lerp, loadBlob, magnetic, SCRAMBLE_CHARS, smooth, timecode } from "./fx";
 import "./ritual.css";
@@ -277,7 +281,7 @@ export default function Ritual() {
     const unMagnetic = magnetic(st);
 
     /* "segure para servir": o scroll para num ponto do capítulo e o vídeo só anda segurando */
-    const hc = CHAPTERS.find((c) => c.hold);
+    const hc = SHOTS.find((s) => s.hold);
     const lockP = hc?.hold ? hc.from + hc.hold.at * (hc.to - hc.from) : 2;
     const hold = { locked: false, done: false, h: 0, pressing: false, tries: 0, shown: false };
     let prevTarget = 0;
@@ -337,13 +341,13 @@ export default function Ritual() {
         });
 
         // abertura sai
-        tl.to(".rl-intro__fx", { y: -36, autoAlpha: 0, stagger: 0.0015, duration: 0.014, ease: "power2.in" }, 0.002);
-        tl.to(".rl-intro__badge", { scale: 0.6, autoAlpha: 0, duration: 0.012 }, 0.002);
+        tl.to(".rl-intro__fx", { y: -36, autoAlpha: 0, stagger: u(0.0015), duration: u(0.014), ease: "power2.in" }, u(0.002));
+        tl.to(".rl-intro__badge", { scale: 0.6, autoAlpha: 0, duration: u(0.012) }, u(0.002));
         // sem WebGL o símbolo e o título são DOM de verdade; com WebGL já são invisíveis (só marcam o layout)
-        tl.to(".rl-intro__logo, .rl-intro__title", { autoAlpha: 0, duration: 0.03 }, INTRO.zoom[0] + 0.01);
-        tl.fromTo(".rl-veil", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.014 }, CHAPTERS[0].from - 0.006);
-        tl.fromTo(".rl-hud", { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.012 }, CHAPTERS[0].from);
-        tl.to(".rl-veil, .rl-hud", { autoAlpha: 0, duration: 0.012 }, FINAL.from + 0.004);
+        tl.to(".rl-intro__logo, .rl-intro__title", { autoAlpha: 0, duration: u(0.03) }, INTRO.zoom[0] + u(0.01));
+        tl.fromTo(".rl-veil", { autoAlpha: 0 }, { autoAlpha: 1, duration: u(0.014) }, CHAPTERS[0].from - u(0.006));
+        tl.fromTo(".rl-hud", { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: u(0.012) }, CHAPTERS[0].from);
+        tl.to(".rl-veil, .rl-hud", { autoAlpha: 0, duration: u(0.012) }, FINAL.from + u(0.004));
 
         // capítulos
         CHAPTERS.forEach((c, i) => {
@@ -355,38 +359,38 @@ export default function Ritual() {
           const lead = panel.querySelector(".rl-panel__lead")!;
           const st1 = SplitText.create(title, { type: "lines,chars", mask: "lines", linesClass: "rl-line", charsClass: "rl-char" });
           const st2 = SplitText.create(lead, { type: "words", wordsClass: "rl-word" });
-          const at = c.from + (i === 0 ? 0.004 : 0.01);
-          const out = c.to - 0.024;
+          const at = c.from + (i === 0 ? u(0.004) : u(0.01));
+          const out = c.to - u(0.024);
 
-          tl.set(panel, { autoAlpha: 1 }, at - 0.001);
-          tl.fromTo(panel.querySelector(".rl-panel__label"), { autoAlpha: 0, x: -18 }, { autoAlpha: 1, x: 0, duration: 0.012 }, at);
-          tl.fromTo(st1.chars, { yPercent: 118, rotateX: -75 }, { yPercent: 0, rotateX: 0, stagger: 0.0011, duration: 0.02, ease: "power3.out" }, at + 0.002);
-          tl.fromTo(lead, { autoAlpha: 0, clipPath: "inset(0 100% 0 0)" }, { autoAlpha: 1, clipPath: "inset(0 0% 0 0)", duration: 0.016, ease: "power2.inOut" }, at + 0.008);
-          tl.fromTo(st2.words, { opacity: 0.12 }, { opacity: 1, stagger: 0.0018, duration: 0.008 }, at + 0.014);
-          tl.to(st1.chars, { yPercent: -118, stagger: 0.0006, duration: 0.014, ease: "power2.in" }, out);
-          tl.to(panel.querySelectorAll(".rl-panel__label, .rl-panel__lead"), { autoAlpha: 0, y: -14, duration: 0.012 }, out);
-          tl.set(panel, { autoAlpha: 0 }, out + 0.02);
+          tl.set(panel, { autoAlpha: 1 }, at - u(0.001));
+          tl.fromTo(panel.querySelector(".rl-panel__label"), { autoAlpha: 0, x: -18 }, { autoAlpha: 1, x: 0, duration: u(0.012) }, at);
+          tl.fromTo(st1.chars, { yPercent: 118, rotateX: -75 }, { yPercent: 0, rotateX: 0, stagger: u(0.0011), duration: u(0.02), ease: "power3.out" }, at + u(0.002));
+          tl.fromTo(lead, { autoAlpha: 0, clipPath: "inset(0 100% 0 0)" }, { autoAlpha: 1, clipPath: "inset(0 0% 0 0)", duration: u(0.016), ease: "power2.inOut" }, at + u(0.008));
+          tl.fromTo(st2.words, { opacity: 0.12 }, { opacity: 1, stagger: u(0.0018), duration: u(0.008) }, at + u(0.014));
+          tl.to(st1.chars, { yPercent: -118, stagger: u(0.0006), duration: u(0.014), ease: "power2.in" }, out);
+          tl.to(panel.querySelectorAll(".rl-panel__label, .rl-panel__lead"), { autoAlpha: 0, y: -14, duration: u(0.012) }, out);
+          tl.set(panel, { autoAlpha: 0 }, out + u(0.02));
 
           if (stats) {
             const items = stats.querySelectorAll(".rl-stat");
             tl.set(stats, { autoAlpha: 1 }, at);
-            tl.fromTo(items, { clipPath: "inset(0 0 100% 0)", y: 20 }, { clipPath: "inset(0 0 0% 0)", y: 0, stagger: 0.004, duration: 0.016, ease: "power3.out" }, at + 0.01);
+            tl.fromTo(items, { clipPath: "inset(0 0 100% 0)", y: 20 }, { clipPath: "inset(0 0 0% 0)", y: 0, stagger: u(0.004), duration: u(0.016), ease: "power3.out" }, at + u(0.01));
             stats.querySelectorAll<HTMLElement>(".rl-stat__num").forEach((n) => {
               const o = { v: 0 };
               const to = Number(n.dataset.to);
-              tl.fromTo(o, { v: 0 }, { v: to, duration: 0.035, ease: "power2.out", onUpdate: () => (n.textContent = String(Math.round(o.v))) }, at + 0.012);
+              tl.fromTo(o, { v: 0 }, { v: to, duration: u(0.035), ease: "power2.out", onUpdate: () => (n.textContent = String(Math.round(o.v))) }, at + u(0.012));
             });
-            tl.to(items, { autoAlpha: 0, y: -14, stagger: 0.002, duration: 0.012 }, out);
-            tl.set(stats, { autoAlpha: 0 }, out + 0.02);
+            tl.to(items, { autoAlpha: 0, y: -14, stagger: u(0.002), duration: u(0.012) }, out);
+            tl.set(stats, { autoAlpha: 0 }, out + u(0.02));
           }
 
           if (word) {
             const letters = word.querySelectorAll(".rl-giant__letter");
-            tl.set(word, { autoAlpha: 1 }, c.from - 0.004);
-            tl.fromTo(letters, { yPercent: 105 }, { yPercent: 0, stagger: 0.002, duration: 0.024, ease: "power3.out" }, c.from - 0.004);
-            tl.fromTo(word, { xPercent: 5 }, { xPercent: -5, duration: c.to - c.from }, c.from - 0.004);
-            tl.fromTo(word, { "--fill": "0%" }, { "--fill": "100%", duration: (c.to - c.from) * 0.8 }, c.from + 0.008);
-            tl.to(letters, { yPercent: -105, stagger: 0.0015, duration: 0.018, ease: "power2.in" }, c.to - 0.022);
+            tl.set(word, { autoAlpha: 1 }, c.from - u(0.004));
+            tl.fromTo(letters, { yPercent: 105 }, { yPercent: 0, stagger: u(0.002), duration: u(0.024), ease: "power3.out" }, c.from - u(0.004));
+            tl.fromTo(word, { xPercent: 5 }, { xPercent: -5, duration: c.to - c.from }, c.from - u(0.004));
+            tl.fromTo(word, { "--fill": "0%" }, { "--fill": "100%", duration: (c.to - c.from) * 0.8 }, c.from + u(0.008));
+            tl.to(letters, { yPercent: -105, stagger: u(0.0015), duration: u(0.018), ease: "power2.in" }, c.to - u(0.022));
             tl.set(word, { autoAlpha: 0 }, c.to);
           }
         });
@@ -396,15 +400,15 @@ export default function Ritual() {
         const sol = el.querySelector<HTMLElement>(`.rl-giant--${CHAPTERS.length}`);
         if (fin) {
           const s = SplitText.create(fin.querySelector(".rl-final__title")!, { type: "lines,chars", mask: "lines", linesClass: "rl-line", charsClass: "rl-char" });
-          tl.set(fin, { autoAlpha: 1 }, CARD[0] + 0.01);
-          tl.fromTo(fin.querySelector(".rl-final__kicker"), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.014 }, CARD[0] + 0.012);
-          tl.fromTo(s.chars, { yPercent: 118, rotateX: -75 }, { yPercent: 0, rotateX: 0, stagger: 0.0012, duration: 0.024, ease: "power3.out" }, CARD[0] + 0.016);
-          tl.fromTo(fin.querySelectorAll(".rl-final__lead, .rl-final__ctas"), { autoAlpha: 0, y: 22 }, { autoAlpha: 1, y: 0, stagger: 0.008, duration: 0.022 }, CARD[0] + 0.04);
+          tl.set(fin, { autoAlpha: 1 }, CARD[0] + u(0.01));
+          tl.fromTo(fin.querySelector(".rl-final__kicker"), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: u(0.014) }, CARD[0] + u(0.012));
+          tl.fromTo(s.chars, { yPercent: 118, rotateX: -75 }, { yPercent: 0, rotateX: 0, stagger: u(0.0012), duration: u(0.024), ease: "power3.out" }, CARD[0] + u(0.016));
+          tl.fromTo(fin.querySelectorAll(".rl-final__lead, .rl-final__ctas"), { autoAlpha: 0, y: 22 }, { autoAlpha: 1, y: 0, stagger: u(0.008), duration: u(0.022) }, CARD[0] + u(0.04));
         }
         if (sol) {
           const letters = sol.querySelectorAll(".rl-giant__letter");
           tl.set(sol, { autoAlpha: 1, "--fill": "100%" }, CARD[0]);
-          tl.fromTo(letters, { yPercent: 105 }, { yPercent: 0, stagger: 0.004, duration: 0.03, ease: "power3.out" }, CARD[0]);
+          tl.fromTo(letters, { yPercent: 105 }, { yPercent: 0, stagger: u(0.004), duration: u(0.03), ease: "power3.out" }, CARD[0]);
         }
         tl.to({}, { duration: 0.0001 }, 1);
       }, el);
@@ -413,8 +417,8 @@ export default function Ritual() {
     if (document.fonts?.ready) document.fonts.ready.then(build);
     else build();
 
-    /** tempo do vídeo de um capítulo, levando em conta o trecho "segure para servir" */
-    const chapterTime = (c: Chapter, p: number, dur: number) => {
+    /** tempo do vídeo de uma tomada, levando em conta o trecho "segure para servir" */
+    const shotTime = (c: Shot, p: number, dur: number) => {
       const end = dur - 0.06;
       const k = clamp01((p - c.from) / (c.to - c.from));
       if (!c.hold) return k * end;
@@ -458,12 +462,27 @@ export default function Ritual() {
     const fitOf = (vi: number, p: number): [number, number, number, number] => {
       if (vi === LOOP_VIDEO) {
         // na abertura o copo começa mais perto e se afasta enquanto a câmera atravessa as letras
-        const z = p < 0.5 ? lerp(1.22, 1.04, smooth(INTRO.zoom[0], INTRO.zoom[1] + 0.01, p)) : 1.04;
+        const z = p < 0.5 ? lerp(1.22, 1.04, smooth(INTRO.zoom[0], INTRO.zoom[1] + u(0.01), p)) : 1.04;
         return [0.5, 0.48, z, VIDEO_ASPECT];
       }
-      const c = CHAPTERS.find((ch) => ch.video === vi)!;
-      const k = clamp01((p - c.from) / (c.to - c.from));
-      return [c.focus[0], c.focus[1], 1.09 - 0.05 * k, VIDEO_ASPECT]; // Ken Burns lento
+      const i = SHOTS.findIndex((s) => s.video === vi);
+      const s = SHOTS[i];
+      const k = clamp01((p - s.from) / (s.to - s.from));
+      const e = smooth(0, 1, k);
+      let x = lerp(s.focus[0][0], s.focus[1][0], e);
+      let y = lerp(s.focus[0][1], s.focus[1][1], e);
+      let z = SHOT_ZOOM;
+      // emenda: o primeiro quadro começa no enquadramento exato do último da tomada anterior
+      // (uvAnterior = m · uvEsta + d) e volta devagar ao seu, como um ajuste de câmera
+      const prev = SHOTS[i - 1];
+      if (s.align && prev) {
+        const { m, d } = s.align;
+        const w = 1 - smooth(0, 0.45, k);
+        x = lerp(x, (prev.focus[1][0] - d[0]) / m, w);
+        y = lerp(y, (prev.focus[1][1] - d[1]) / m, w);
+        z = lerp(z, SHOT_ZOOM * m, w);
+      }
+      return [x, y, z, VIDEO_ASPECT];
     };
 
     const tick = (time: number, dtMs: number) => {
@@ -525,7 +544,7 @@ export default function Ritual() {
       st.style.setProperty("--vel", vel.value.toFixed(4));
 
       // grãos 3D só enquanto aparecem
-      const beansOn = p < INTRO.burst[1] + 0.01;
+      const beansOn = p < INTRO.burst[1] + u(0.01);
       if (beansOn !== beansActiveRef.current) {
         beansActiveRef.current = beansOn;
         setBeansActive(beansOn);
@@ -568,10 +587,10 @@ export default function Ritual() {
 
       // vídeos: tempo de cada tomada visível e o copo em loop
       const visible = (vi: number) => vi === a || (mix > 0 && vi === b);
-      CHAPTERS.forEach((c) => {
+      SHOTS.forEach((c) => {
         const v = videos.current[c.video];
         if (!v || !v.duration || !visible(c.video)) return;
-        const t = chapterTime(c, p, v.duration);
+        const t = shotTime(c, p, v.duration);
         if (!v.seeking && Math.abs(v.currentTime - t) > 1 / 48) v.currentTime = t;
       });
       const loop = videos.current[LOOP_VIDEO];
@@ -588,7 +607,7 @@ export default function Ritual() {
       const scale = 1 + (INTRO.scale - 1) * Math.pow(z, 2.4);
       const ak = easeInOutCubic(z);
       const anchor: [number, number] = [lerp(mask.pivot[0], box.W / 2, ak), lerp(mask.pivot[1], box.H / 2, ak)];
-      const maskOn = p < INTRO.reveal[1] + 0.003;
+      const maskOn = p < INTRO.reveal[1] + u(0.003);
 
       // ---- final: o vídeo encolhe até o quadro ----
       const ck = easeInOutCubic(clamp01((p - CARD[0]) / (CARD[1] - CARD[0])));
@@ -615,7 +634,7 @@ export default function Ritual() {
         state.revealC = anchor;
         state.mouse = reduced ? [0, 0] : [mouse.x, mouse.y];
         state.vel = reduced ? 0 : vel.value;
-        state.spot = 1 - smooth(0, INTRO.zoom[0] + 0.03, p);
+        state.spot = 1 - smooth(0, INTRO.zoom[0] + u(0.03), p);
         state.spotC = [mouse.spx, mouse.spy];
         state.grain = reduced ? 0.025 : 0.05;
         gl.render(state, time);
@@ -630,7 +649,7 @@ export default function Ritual() {
       // ---- HUD ----
       let ch = 0;
       CHAPTERS.forEach((c) => {
-        if (p >= c.from - 0.004) ch = c.n;
+        if (p >= c.from - u(0.004)) ch = c.n;
       });
       if (p >= FINAL.from) ch = CHAPTERS.length + 1;
       if (ch !== active) {
@@ -650,9 +669,19 @@ export default function Ritual() {
         }
       }
       if (pct.current) pct.current.textContent = String(Math.round(p * 100)).padStart(3, "0");
-      const cv0 = CHAPTERS[Math.max(0, Math.min(CHAPTERS.length, ch) - 1)];
-      const vt = videos.current[cv0.video];
-      if (tc.current && vt) tc.current.textContent = timecode(vt.currentTime || 0);
+      // timecode contínuo: a soma das tomadas já passadas mais o tempo da atual
+      if (tc.current) {
+        let acc = 0;
+        for (const s of SHOTS) {
+          const v = videos.current[s.video];
+          if (p < s.to) {
+            if (p >= s.from) acc += v?.currentTime || 0;
+            break;
+          }
+          acc += v?.duration || 0;
+        }
+        tc.current.textContent = timecode(acc);
+      }
       st.style.setProperty("--p", p.toFixed(4));
 
       // selo da abertura gira mais rápido quando o scroll acelera
@@ -684,12 +713,12 @@ export default function Ritual() {
   }, []);
 
   return (
-    <section ref={section} className="rl" id="inicio" aria-label="Sóis Café · Goa — o ritual do café">
+    <section ref={section} className="rl" id="inicio" style={{ height: `${TOTAL_VH}vh` }} aria-label="Sóis Café · Goa — o ritual do café">
       {/* âncoras dos capítulos (o índice e o selo levam até elas) */}
       {CHAPTERS.map((c) => (
-        <span key={c.id} id={`ritual-${c.id}`} className="rl-anchor" style={{ top: `calc((100% - 100vh) * ${c.from + 0.016})` }} />
+        <span key={c.id} id={`ritual-${c.id}`} className="rl-anchor" style={{ top: `calc((100% - 100vh) * ${c.from + u(0.016)})` }} />
       ))}
-      <span id="ritual-final" className="rl-anchor" style={{ top: `calc((100% - 100vh) * ${CARD[1] + 0.03})` }} />
+      <span id="ritual-final" className="rl-anchor" style={{ top: `calc((100% - 100vh) * ${Math.min(1, CARD[1] + u(0.03))})` }} />
 
       <div ref={stage} className="rl-stage" data-chapter="0" data-tone="intro">
         <div className="rl-videos" aria-hidden="true">
@@ -740,7 +769,7 @@ export default function Ritual() {
             <span ref={tag}>Dois sóis. Um só café.</span>
           </p>
           <p className="rl-intro__copy rl-intro__fx">
-            <span>Cafés especiais, cold brew e a luz de Goa em cada copo. Role e acompanhe o ritual, do grão ao gelo.</span>
+            <span>Cafés especiais, cold brew e a luz de Goa em cada copo. Role e acompanhe o ritual, do grão ao pôr do sol.</span>
           </p>
           <a ref={badge} className="rl-intro__badge" href={`#ritual-${CHAPTERS[0].id}`} data-magnetic="0.45" data-cursor="Rolar" aria-label="Começar o ritual">
             <span className="rl-intro__badge-in">
@@ -785,7 +814,7 @@ export default function Ritual() {
         {/* final */}
         <div ref={cardSlot} className="rl-card-slot" aria-hidden="true" />
         <article className="rl-final">
-          <p className="rl-final__kicker">Do grão ao gelo</p>
+          <p className="rl-final__kicker">Do grão ao pôr do sol</p>
           <h2 className="rl-final__title">
             Seu café,
             <br />
@@ -851,7 +880,7 @@ export default function Ritual() {
           </span>
         </div>
 
-        <LiquidLayer ref={liquid} className="rl-liquid" />
+        {HAS_LIQUID && <LiquidLayer ref={liquid} className="rl-liquid" />}
         {beans && (
           <BeanLogo
             progress={prog}

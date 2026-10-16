@@ -7,7 +7,7 @@ html.is-loading body {
 
 .rl {
   position: relative;
-  height: 1250vh;
+  height: 2200vh; /* igual a TOTAL_VH em script.ts (o componente também aplica inline) */
 }
 
 .rl-anchor {
