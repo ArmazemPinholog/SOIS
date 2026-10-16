@@ -3,15 +3,19 @@
 ## A ideia
 Uma única **torre do ritual**, montada na vertical sobre uma base de nogueira, e a câmera **descendo sem corte**, seguindo a gravidade:
 
-grãos caindo → funil do moedor → bica → pó caindo no V60 → água da chaleira → café saindo do V60 para a serpentina de vidro → serpentina → copo da Sóis → cubos de gelo → câmera se afasta e revela a torre inteira.
+grãos caindo → funil do moedor → bica → pó caindo no V60 → água da chaleira → café saindo do V60 para a serpentina de vidro → serpentina → copo da Sóis → **a mão do barista põe o gelo e leva o copo** → mesa com o cardápio e gente ao fundo → a câmera sai pela janela e mostra a fachada com a placa e as palmeiras → sobe para o mar no pôr do sol, com o sol e o reflexo formando **dois sóis**.
+
+Do macro ao plano aberto sem nenhum corte: o copo é o fio que puxa a câmera para fora.
 
 Cada peça encaixa na de baixo, então a história não precisa de transição: é o mesmo lugar, a mesma luz e a mesma câmera o tempo todo.
+
+**Mãos e pessoas:** é onde a IA mais erra (dedos, objetos que derretem). Por isso: uma mão só, manga de linho creme, gesto simples e lento; pessoas sempre ao fundo e desfocadas. **Placa e cardápio:** a IA escreve errado. Peça sem letras legíveis; o nome e o cardápio de verdade eu coloco por cima no site.
 
 **Truque para manter tudo igual:** primeiro gere UMA imagem mestra da torre inteira (M). Todas as imagens-chave (K1–K7) saem dela, como "closes" de regiões dessa mesma imagem.
 
 **Ordem de trabalho**
-1. Gemini: imagem mestra M (anexe as referências: `referencias/cena3b-copo-provisorio.jpg` ou `public/img/copo-bordo.jpg` para o copo, e um quadro de cada vídeo atual para o estilo).
-2. Gemini: K1 a K7, sempre anexando M **e** a imagem-chave anterior.
+1. Gemini: imagem mestra M (anexe também `public/img/casa-placa.jpg` para K9; as referências: `referencias/cena3b-copo-provisorio.jpg` ou `public/img/copo-bordo.jpg` para o copo, e um quadro de cada vídeo atual para o estilo).
+2. Gemini: K1 a K10, sempre anexando M **e** a imagem-chave anterior.
 3. Upscayl em todas as imagens (mínimo 1920 px de largura).
 4. Grok: um vídeo por par de imagens (V1 começa em K1, V2 começa no **último quadro** do V1, e assim por diante). Se o gerador aceitar imagem final, use K(n+1) como final.
 5. Video2X → Flowframes → me mande os arquivos.
@@ -24,6 +28,13 @@ Mantenha a torre **no centro** do quadro: assim eu recorto a versão de celular 
 
 ```
 Style: photorealistic luxury product commercial, macro cinematography, 85mm lens, shallow depth of field, soft warm golden-hour light from the upper left, warm cream plaster wall background (#F8EACF) with soft blurred palm-leaf shadows, burgundy glazed ceramic (#6A1E1E) and brushed brass details, dark walnut wood, rich coffee browns, gentle film grain, 16:9, centered vertical composition. No text, no letters, no words, no logos, no watermarks, no people, no hands.
+```
+
+---
+
+**Variante do bloco (K7 em diante, onde entram mão e pessoas):** troque o final `No text, no letters, no words, no logos, no watermarks, no people, no hands.` por:
+```
+No text, no letters, no words, no logos, no watermarks. Hands must be anatomically correct with five fingers, moving slowly. Any people stay in the soft blurred background.
 ```
 
 ---
@@ -79,10 +90,28 @@ Using the attached master image and the attached previous frame, move the camera
 [STYLE BLOCK]
 ```
 
-### K7 — gelo e revelação
+### K7 — a mão do barista põe o gelo
 ```
-Using the attached master image and the attached previous frame, the same cup now has clear ice cubes floating in the dark coffee, a tiny coffee splash crown settling. The camera has pulled back and the whole tower is visible again, exactly as in the master image, centered on the walnut base.
-[STYLE BLOCK]
+Using the attached master image and the attached previous frame, same cup, same light, same camera. A barista's hand in a cream linen sleeve holds brass ice tongs and drops a clear ice cube into the coffee; two cubes already float, a small splash crown rises.
+[STYLE BLOCK — variante]
+```
+
+### K8 — o copo na mesa, com o cardápio
+```
+Continue the same scene: the hand has carried the burgundy cup with ice to a walnut café table next to a sunny window and set it down beside a cream menu card with a burgundy border (the card has only abstract lines, no readable text). Palm-leaf shadows fall across the table. In the soft blurred background, two friends talk and smile at another table. Same warm golden light and colors as the previous frame.
+[STYLE BLOCK — variante]
+```
+
+### K9 — a fachada (anexe public/img/casa-placa.jpg)
+```
+Continue the same story outside: the front of the same café seen from the street in late-afternoon light. Cream plaster facade, burgundy details, the round sign from the attached photo showing only the two-half-suns symbol (no lettering), tall palm trees, people blurred at small outdoor tables, the sea glimpsed at the end of the street. Same warm golden palette.
+[STYLE BLOCK — variante]
+```
+
+### K10 — pôr do sol, dois sóis
+```
+Continue the same story: the camera has risen above the café and faces the sea at sunset. A large orange sun touches the horizon and its reflection on the calm water forms a second sun right below it, the two shapes meeting like the café's two-half-suns symbol. Palm silhouettes at the edges, the café terrace softly lit in the foreground. Warm orange, burgundy and cream sky.
+[STYLE BLOCK — variante]
 ```
 
 ---
@@ -127,9 +156,29 @@ The camera keeps following the amber coffee down the last loops of the glass coi
 
 **V6 (K6 → K7)**
 ```
-Clear ice cubes drop one by one into the coffee in the cup, small splash crowns and droplets in slow motion. Then the camera slowly pulls back and up, revealing the whole coffee tower on the walnut base.
+The coffee stream stops. A barista's hand in a cream linen sleeve enters slowly from the right with brass ice tongs and drops clear ice cubes one by one into the cup; small splash crowns and droplets in slow motion.
 [MOTION BLOCK]
 ```
+
+**V7 (K7 → K8)**
+```
+The hand gently lifts the cup with ice. The camera follows the cup as it is carried a few steps and set down on a sunny walnut table beside a cream menu card; friends talk in the soft blurred background.
+[MOTION BLOCK]
+```
+
+**V8 (K8 → K9)**
+```
+The camera keeps moving backward, slowly gliding out through the open window to the street, revealing the cream café facade with the round sun-symbol sign, palm trees swaying and people at outdoor tables.
+[MOTION BLOCK]
+```
+
+**V9 (K9 → K10)**
+```
+The camera slowly cranes up over the café and turns toward the sea; the sun lowers to the horizon and its reflection on the water forms a second sun below it. Palm leaves move gently in the breeze.
+[MOTION BLOCK]
+```
+
+No V6 a V9 troque no bloco de movimento `no new objects appearing` por `hands and people move naturally and slowly`.
 
 ---
 
