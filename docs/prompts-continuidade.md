@@ -156,7 +156,7 @@ The camera keeps following the amber coffee down the last loops of the glass coi
 
 **V6 (K6 → K7)**
 ```
-The coffee stream stops. A barista's hand in a cream linen sleeve enters slowly from the right with brass ice tongs and drops clear ice cubes one by one into the cup; small splash crowns and droplets in slow motion.
+The last coffee drains out of the glass coil, leaving the glass clear, and only a thin final stream falls from its tip. A barista's hand in a cream linen sleeve enters slowly from the right with brass ice tongs and drops clear ice cubes one by one into the cup; small splash crowns and droplets in slow motion.
 [MOTION BLOCK]
 ```
 
